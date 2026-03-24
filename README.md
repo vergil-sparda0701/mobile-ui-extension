@@ -103,6 +103,15 @@ mobile-ui-extension/
 
 ---
 
+## Preview
+
+![UI Preview](./Mobile_UI_shots/screen1.png)
+![UI Preview2](./Mobile_UI_shots/screen2.png)
+![UI Preview3](./Mobile_UI_shots/screen3.png)
+![UI Preview4](./Mobile_UI_shots/screen4.png)
+
+---
+
 ## ☕ Support the project
 
 If this extension saves you time and you'd like to support its development, a coffee is always appreciated!
