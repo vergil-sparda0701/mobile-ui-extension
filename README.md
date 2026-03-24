@@ -105,10 +105,10 @@ mobile-ui-extension/
 
 ## Preview
 
-![UI Preview](./Mobile_UI_shots/screen1.png)
-![UI Preview2](./Mobile_UI_shots/screen2.png)
-![UI Preview3](./Mobile_UI_shots/screen3.png)
-![UI Preview4](./Mobile_UI_shots/screen4.png)
+![UI Preview](./Mobile_UI_shots/screen1.jpg)
+![UI Preview2](./Mobile_UI_shots/screen2.jpg)
+![UI Preview3](./Mobile_UI_shots/screen3.jpg)
+![UI Preview4](./Mobile_UI_shots/screen4.jpg)
 
 ---
 
