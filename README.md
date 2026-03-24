@@ -1,98 +1,113 @@
 # 📱 Mobile UI Extension
+
 ### Stable Diffusion WebUI (Forge / Automatic1111)
 
-Una interfaz móvil inspirada en **tensor.art** para SD WebUI Forge y AUTOMATIC1111.
+A mobile interface inspired by **tensor.art** for SD WebUI Forge and AUTOMATIC1111.
 
 ---
 
-## ✨ Características
+## ✨ Features
 
-- 📱 **Interfaz móvil completa** — Diseño oscuro estilo tensor.art
-- 🎨 **Text2Img** — Prompt positivo/negativo con toolbar (aleatorio, limpiar, copiar)
-- 🖼️ **Img2Img** — Carga de imágenes para variaciones
-- ⚙️ **Settings** — Aspect ratio (2:3, 3:2, 1:1, custom), pasos, CFG, seed, sampler
-- 🔧 **Modelos** — Selector de checkpoint con cambio en caliente
-- ✨ **LoRA** — Selector con control de peso deslizante
-- 🔄 **Progreso en tiempo real** — Barra de progreso durante la generación
-- 🖼️ **Galería de resultados** — Vista de imágenes generadas
-- 🔍 **Upscale / ADetailer / Layer Diffusion** — Toggles rápidos
-- 🎲 **Prompt aleatorio** — Ideas de prompts integradas
+* 📱 **Full mobile interface** — Dark design inspired by tensor.art
+* 🎨 **Text2Img** — Positive/negative prompt with toolbar (random, clear, copy)
+* 🖼️ **Img2Img** — Image upload for variations
+* ⚙️ **Settings** — Aspect ratio (2:3, 3:2, 1:1, custom), steps, CFG, seed, sampler
+* 🔧 **Models** — Checkpoint selector with hot swapping
+* ✨ **LoRA** — Selector with slider weight control
+* 🔄 **Real-time progress** — Progress bar during generation
+* 🖼️ **Results gallery** — View generated images
+* 🔍 **Upscale / ADetailer / Layer Diffusion** — Quick toggles
+* 🎲 **Random prompt** — Built-in prompt ideas
 
 ---
 
-## 🚀 Instalación
+## 🚀 Installation
 
-### Método 1 — Instalar desde URL (recomendado)
-1. Abre SD WebUI
-2. Ve a **Extensions** → **Install from URL**
-3. Pega la URL del repositorio
-4. Haz clic en **Install**
-5. Reinicia la WebUI
+### Method 1 — Install from URL (recommended)
 
-### Método 2 — Manual
-1. Descarga o clona este repositorio
-2. Copia la carpeta `mobile-ui-extension` a:
+1. Open SD WebUI
+2. Go to **Extensions** → **Install from URL**
+3. Paste the repository URL
+4. Click **Install**
+5. Restart the WebUI
+
+### Method 2 — Manual
+
+1. Download or clone this repository
+2. Copy the `mobile-ui-extension` folder to:
+
    ```
    stable-diffusion-webui/extensions/mobile-ui-extension/
    ```
-3. Reinicia la WebUI
+3. Restart the WebUI
 
 ---
 
-## 📁 Estructura del repositorio
+## 📁 Repository Structure
 
 ```
 mobile-ui-extension/
 ├── scripts/
-│   └── mobile_ui.py          # Script principal (Python/Gradio)
+│   └── mobile_ui.py          # Main script (Python/Gradio)
 ├── javascript/
-│   └── mobile_ui.js          # UI completa (se inyecta automáticamente)
+│   └── mobile_ui.js          # Full UI (auto-injected)
 └── README.md
 ```
 
 ---
 
-## 🎮 Uso
+## 🎮 Usage
 
-1. Después de instalar, verás un botón **📱 Mobile UI** en la esquina inferior derecha
-2. Haz clic para abrir la interfaz móvil en pantalla completa
-3. Escribe tu prompt, ajusta los settings y presiona **⚡ Generate**
-4. Las imágenes aparecen en la galería de resultados
-
----
-
-## ⚙️ Compatibilidad
-
-| WebUI | Estado |
-|-------|--------|
-| Forge | ✅ Probado |
-| AUTOMATIC1111 v1.9+ | ✅ Compatible |
-| ComfyUI | ❌ No compatible |
+1. After installation, you will see a **📱 Mobile UI** button in the bottom-right corner
+2. Click it to open the mobile interface in full screen
+3. Enter your prompt, adjust settings, and press **⚡ Generate**
+4. Images will appear in the results gallery
 
 ---
 
-## 🛠️ Tecnología
+## ⚙️ Compatibility
 
-- JavaScript vanilla (sin dependencias externas)
-- Usa la **API REST de A1111** (`/sdapi/v1/`)
-- Fuente: [Sora](https://fonts.google.com/specimen/Sora) via Google Fonts
-- Sin React, sin bundler — funciona directamente
-
----
-
-## 📝 Notas
-
-- La extensión **no reemplaza** la interfaz original — la agrega como overlay
-- El cambio de modelo puede tardar según el tamaño del checkpoint
-- Compatible con extensiones como ADetailer (los toggles activan el parámetro en el payload)
+| WebUI               | Status           |
+| ------------------- | ---------------- |
+| Forge               | ✅ Tested         |
+| AUTOMATIC1111 v1.9+ | ✅ Compatible     |
+| ComfyUI             | ❌ Not compatible |
 
 ---
 
-## 🐛 Problemas conocidos
+## 🛠️ Technology
 
-- El tab Img2Img está en desarrollo (UI lista, funcionalidad pendiente)
-- Layer Diffusion requiere tener la extensión instalada en la WebUI
+* Vanilla JavaScript (no external dependencies)
+* Uses the **A1111 REST API** (`/sdapi/v1/`)
+* Font: [Sora](https://fonts.google.com/specimen/Sora) via Google Fonts
+* No React, no bundler — runs directly
 
 ---
 
-*Desarrollado como extensión de Stable Diffusion WebUI*
+## 📝 Notes
+
+* The extension **does not replace** the original interface — it adds it as an overlay
+* Model switching may take time depending on checkpoint size
+* Compatible with extensions like ADetailer (toggles enable parameters in the payload)
+
+---
+
+## 🐛 Known Issues
+
+* The Img2Img tab is under development (UI ready, functionality pending)
+* Layer Diffusion requires the extension to be installed in the WebUI
+
+---
+
+*Developed as a Stable Diffusion WebUI extension*
+
+---
+
+## ☕ Support the project
+
+If this extension saves you time and you'd like to support its development, a coffee is always appreciated!
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/danielgs20019)
+
+Every contribution helps keep the project maintained and motivates new features. Thank you! 🙏
+
