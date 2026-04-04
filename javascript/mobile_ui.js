@@ -46,6 +46,10 @@
     imgError: "❌ Error al leer imagen",
     resWarn: "⚠️ Ancho/alto deben ser múltiplos de 8 (ajustados automáticamente)",
     paramsCopied: "📋 Parámetros copiados",
+    pasteOk: "✅ Parámetros pegados",
+    pasteErr: "❌ Formato no reconocido — copia los parámetros de CivitAI",
+    pasteEmpty: "⚠️ Portapapeles vacío",
+    pasteNoClip: "⚠️ Sin acceso al portapapeles",
     stopped: "⏹ Generación detenida",
     stopError: "No se pudo detener la generación",
     slowWarning: "⏳ Upscale/ADetailer activo — puede tardar varios minutos en gradio.live",
@@ -874,6 +878,8 @@
 .TBAR{display:flex;gap:5px;}
 .TBTN{background:#1e1e2e;border:1px solid #2d2d45;color:#9ca3af;border-radius:7px;padding:6px 10px;font-size:14px;cursor:pointer;touch-action:manipulation;}
 .TBTN:active{background:#252545;}
+.TBTN-paste{margin-left:auto;color:#a78bfa;border-color:#6d28d966;font-size:13px;}
+.TBTN-paste:active{background:#1e1040;}
 
 .MB{display:inline-block;background:#1e1e2e;border:1px solid #2d2d45;border-radius:5px;padding:2px 7px;font-size:10px;font-weight:700;color:#06b6d4;margin-bottom:6px;}
 .MB.lor{color:#a855f7;}
@@ -1171,6 +1177,7 @@
     <button class="TBTN" onclick="mui.rp()" title="Prompt aleatorio">🎲</button>
     <button class="TBTN" onclick="mui.cp()" title="Limpiar prompt">🗑️</button>
     <button class="TBTN" onclick="mui.cpy()" title="Copiar prompt">📋</button>
+    <button class="TBTN TBTN-paste" onclick="mui.pasteCivitai()" title="Pegar parámetros CivitAI">📥 Pegar params</button>
   </div>
 </div>`;
   }
@@ -2209,6 +2216,157 @@ ${rSamplerSection()}
     },
     cp(){ S.prompt=""; const ta=$("mTa");if(ta)ta.value=""; scheduleSave(); },
     cpy(){ navigator.clipboard&&navigator.clipboard.writeText(S.prompt).then(()=>notify(T.copied)); },
+
+    // ── Paste CivitAI params ──────────────────────
+    parseCivitaiText(text) {
+      // Split into: positive prompt block, then the key:value metadata line(s)
+      // Format: <positive>\nNegative prompt: <negative>\n<key>: <val>, <key>: <val>, ...
+      // Negative prompt line may be absent.
+      const result = {};
+
+      // Detect the metadata block — it starts at a line beginning with "Steps:" or similar known keys
+      const META_KEYS = ["Steps","CFG scale","Sampler","Seed","Size","Model","Version","Model hash",
+        "Hires upscale","Hires upscaler","Denoising strength","Schedule type","Clip skip","ENSD"];
+      const metaRegex = new RegExp("^("+META_KEYS.join("|")+"):", "m");
+      const metaMatch = metaRegex.exec(text);
+
+      let body = text;
+      let metaStr = "";
+      if (metaMatch) {
+        // Find which line the metadata starts on
+        const metaLineStart = text.lastIndexOf("\n", metaMatch.index) + 1;
+        body    = text.slice(0, metaLineStart).trim();
+        metaStr = text.slice(metaLineStart).trim();
+      }
+
+      // Split body into positive / negative
+      const negIdx = body.search(/\nNegative prompt:/i);
+      if (negIdx >= 0) {
+        result.prompt = body.slice(0, negIdx).trim();
+        result.neg    = body.slice(negIdx).replace(/^\s*Negative prompt:\s*/i, "").trim();
+      } else {
+        result.prompt = body.trim();
+        result.neg    = null;
+      }
+
+      // Parse metadata key:value pairs separated by ", "
+      // Values can contain commas inside so we split on ", KEY:" boundaries
+      if (metaStr) {
+        // Build a regex that matches ", <KEY>:" to find boundaries
+        const allKeys = META_KEYS.join("|");
+        const splitRe = new RegExp(",\\s*(?=(?:"+allKeys+"):)", "g");
+        const parts = metaStr.split(splitRe);
+        parts.forEach(p => {
+          const colon = p.indexOf(":");
+          if (colon < 0) return;
+          const k = p.slice(0, colon).trim();
+          const v = p.slice(colon + 1).trim();
+          result[k] = v;
+        });
+      }
+      return result;
+    },
+
+    pasteCivitai() {
+      if (!navigator.clipboard || !navigator.clipboard.readText) {
+        notify(T.pasteNoClip); return;
+      }
+      navigator.clipboard.readText().then(text => {
+        text = (text||"").trim();
+        if (!text) { notify(T.pasteEmpty); return; }
+
+        const p = this.parseCivitaiText(text);
+
+        // Need at least a prompt or Steps to consider it valid
+        if (!p.prompt && !p["Steps"]) { notify(T.pasteErr); return; }
+
+        let changed = [];
+
+        // ── Positive prompt ──────────────────────────
+        if (p.prompt) {
+          S.prompt = p.prompt;
+          const ta = $("mTa"); if (ta) ta.value = S.prompt;
+          changed.push("prompt");
+        }
+
+        // ── Negative prompt ──────────────────────────
+        if (p.neg !== null && p.neg !== undefined) {
+          S.neg = p.neg;
+          const ng = $("mNg"); if (ng) ng.value = S.neg;
+          changed.push("neg");
+        }
+
+        // ── Steps ────────────────────────────────────
+        if (p["Steps"]) {
+          const v = parseInt(p["Steps"]);
+          if (!isNaN(v)) { S.steps = clamp(v, 1, 150); changed.push("steps"); }
+        }
+
+        // ── CFG scale ────────────────────────────────
+        if (p["CFG scale"]) {
+          const v = parseFloat(p["CFG scale"]);
+          if (!isNaN(v)) { S.cfg = clamp(v, 0, 30); changed.push("cfg"); }
+        }
+
+        // ── Sampler ──────────────────────────────────
+        if (p["Sampler"]) {
+          S.sampler = p["Sampler"];
+          changed.push("sampler");
+        }
+
+        // ── Schedule type (scheduler) ─────────────────
+        if (p["Schedule type"]) {
+          S.scheduler = p["Schedule type"];
+          changed.push("scheduler");
+        }
+
+        // ── Seed ─────────────────────────────────────
+        if (p["Seed"]) {
+          S.seed = p["Seed"];
+          changed.push("seed");
+        }
+
+        // ── Size (e.g. "896x1152") ────────────────────
+        if (p["Size"]) {
+          const m = p["Size"].match(/^(\d+)[xX×](\d+)$/);
+          if (m) {
+            S.cw = snap8(parseInt(m[1]));
+            S.ch = snap8(parseInt(m[2]));
+            // Set aspect ratio to custom
+            S.ar = "custom";
+            changed.push("size");
+          }
+        }
+
+        // ── Hires upscale ─────────────────────────────
+        if (p["Hires upscale"]) {
+          const v = parseFloat(p["Hires upscale"]);
+          if (!isNaN(v) && v > 1) {
+            S.upscale = true;
+            S.upscaleX = v;
+            changed.push("hires");
+          }
+        }
+
+        // ── Hires upscaler ────────────────────────────
+        if (p["Hires upscaler"]) {
+          S.upscaler = p["Hires upscaler"];
+          changed.push("upscaler");
+        }
+
+        // ── Denoising strength ────────────────────────
+        if (p["Denoising strength"]) {
+          const v = parseFloat(p["Denoising strength"]);
+          if (!isNaN(v)) { S.upscaleDn = clamp(v, 0, 1); changed.push("denoise"); }
+        }
+
+        scheduleSave();
+        // Re-render the whole tab to reflect all changes
+        rerender();
+
+        notify(T.pasteOk + " (" + changed.length + " campos)");
+      }).catch(() => notify(T.pasteNoClip));
+    },
 
     clearSaved(){
       try { localStorage.removeItem("mui_state_v10"); notify("🗑️ Estado guardado borrado"); } catch(e){}
