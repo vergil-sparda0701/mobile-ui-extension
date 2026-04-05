@@ -1863,6 +1863,9 @@ ${rSamplerSection()}
         <button class="EBTN" style="flex:1" onclick="mui.exp('${id}')"><span id="eico-${id}">▼</span> Ver params</button>
         <button class="EBTN" style="flex:1" onclick="mui.copyParams('${id}')">📋 Copiar params</button>
       </div>
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <button class="EBTN" style="flex:1;background:#7c3aed22;border-color:#7c3aed66;color:#a78bfa" onclick="mui.remixParams('${id}')">🔀 Remezclar</button>
+      </div>
       <div id="prm-${id}" class="PRMS">
         <div class="PR"><span class="PK">Prompt</span><span class="PV">${esc(params.prompt.slice(0,80))}${params.prompt.length>80?"…":""}</span></div>
         <div class="PR"><span class="PK">Negativo</span><span class="PV">${esc((params.neg||"").slice(0,60))}${(params.neg||"").length>60?"…":""}</span></div>
@@ -2249,11 +2252,146 @@ ${rSamplerSection()}
     // ── Tasks / Cards ────────────────────────────
     exp(id){ const p=$("prm-"+id),ico=$("eico-"+id);if(!p||!ico)return;const open=p.classList.toggle("open");ico.textContent=open?"▲":"▼"; },
 
-    // MEJORA-07: copiar parámetros como JSON
+    // MEJORA-07: copiar parámetros en formato CivitAI
     copyParams(jobId){
       const job = S.history.find(j=>j.id===jobId); if(!job) return;
-      const txt = JSON.stringify(job.params, null, 2);
+      const p = job.params;
+
+      // Positive prompt (sin los <lora:...> tags — esos no van en CivitAI)
+      const cleanPrompt = (p.prompt||"").replace(/<lora:[^>]+>/g,"").replace(/,\s*,/g,",").trim().replace(/,\s*$/,"");
+
+      // Negative prompt
+      const neg = (p.neg||"").trim();
+
+      // Metadata line en formato CivitAI
+      const size = (p.w||512)+"x"+(p.h||512);
+      const modelName = (p.model||"").replace(/\.[^/.]+$/,"");
+      const seed = p.seed||"-1";
+      const sampler = p.sampler||"Euler a";
+      const scheduler = (p.scheduler && p.scheduler !== "Automatic") ? p.scheduler : "Automatic";
+      const steps = p.steps||20;
+      const cfg = p.cfg||7;
+
+      let meta = "Steps: "+steps+", CFG scale: "+cfg+", Sampler: "+sampler+", Seed: "+seed+", Size: "+size;
+      if (modelName) meta += ", Model: "+modelName;
+      if (p.model) {
+        const mdl = S.models.find(m=>m.t===p.model);
+        if (mdl&&mdl.hash) meta += ", Model hash: "+mdl.hash.slice(0,10);
+      }
+      // Versión SD WebUI
+      meta += ", Version: 1.10.1";
+      if (scheduler) meta += ", Schedule type: "+scheduler;
+
+      // Hires / upscale
+      if (p.upscale && p.upscaleX && p.upscaleX > 1) {
+        meta += ", Hires prompt: , Hires upscale: "+p.upscaleX;
+        meta += ", Hires upscaler: "+(p.upscaler||"Latent");
+        meta += ", Denoising strength: "+(p.upscaleDn||0.7);
+        meta += ", Hires negative prompt: ";
+      }
+
+      // ADetailer badge en metadata
+      if (p.adetailer && p.adSlots && p.adSlots.length) {
+        meta += ", ADetailer model: "+p.adSlots.join("; ");
+      }
+
+      // Construir texto final en formato CivitAI
+      let txt = cleanPrompt;
+      if (neg) txt += "\nNegative prompt: "+neg;
+      txt += "\n"+meta;
+
       navigator.clipboard&&navigator.clipboard.writeText(txt).then(()=>notify(T.paramsCopied));
+    },
+
+    // Remezclar: restaura TODOS los recursos del job en la pestaña txt2img
+    remixParams(jobId){
+      const job = S.history.find(j=>j.id===jobId); if(!job) return;
+      const p = job.params;
+
+      // ── Prompt (sin <lora:...> embebidos) ─────────────────────────
+      S.prompt = (p.prompt||"").replace(/<lora:[^>]+>/g,"").replace(/,\s*,/g,",").trim().replace(/,\s*$/,"");
+      S.neg    = p.neg || "";
+
+      // ── Sampler / Scheduler / Steps / CFG / Seed ──────────────────
+      if (p.sampler)      S.sampler   = p.sampler;
+      if (p.scheduler)    S.scheduler = p.scheduler;
+      if (p.steps)        S.steps     = p.steps;
+      if (p.cfg != null)  S.cfg       = p.cfg;
+      S.seed = (p.seed && p.seed !== "−1" && p.seed !== "-1") ? String(p.seed) : "";
+
+      // ── Tamaño / Aspect Ratio ──────────────────────────────────────
+      if (p.w && p.h) {
+        S.cw = p.w; S.ch = p.h;
+        const arMatch = Object.entries(AR).find(([,v]) => v.w === p.w && v.h === p.h);
+        S.ar = arMatch ? arMatch[0] : "custom";
+      }
+
+      // ── Modelo ─────────────────────────────────────────────────────
+      if (p.model) S.model = p.model;
+
+      // ── LoRAs ──────────────────────────────────────────────────────
+      // params.loras se guarda como string: "nombre(peso), nombre2(peso2)"
+      // Reconstruimos S.loras_active desde ese string
+      S.loras_active = [];
+      if (p.loras && p.loras !== "—") {
+        p.loras.split(",").map(s => s.trim()).filter(Boolean).forEach(entry => {
+          const m = entry.match(/^(.+?)\(([\d.]+)\)$/);
+          if (m) {
+            const n = m[1].trim();
+            const w = parseFloat(m[2]) || 1.0;
+            if (n) S.loras_active.push({ n, w });
+          }
+        });
+      }
+
+      // ── Upscale (Hires.fix) ────────────────────────────────────────
+      S.upscale = !!p.upscale;
+      if (p.upscaler) S.upscaler = p.upscaler;
+      if (p.upscaleX) S.upscaleX = p.upscaleX;
+      // upscaleDn no se guarda en params — se conserva el valor actual de S
+
+      // ── ADetailer ──────────────────────────────────────────────────
+      // params.adSlots es array de strings con los nombres de modelos activos
+      S.adetailer = !!p.adetailer;
+      if (p.adetailer && p.adSlots && p.adSlots.length) {
+        // Deshabilitar todos primero
+        S.adSlots.forEach(slot => { slot.enabled = false; });
+        // Habilitar solo los que estaban activos, restaurando el modelo
+        p.adSlots.forEach((modelName, idx) => {
+          if (idx < S.adSlots.length) {
+            S.adSlots[idx].enabled = true;
+            S.adSlots[idx].model   = modelName;
+          }
+        });
+      } else {
+        S.adSlots.forEach(slot => { slot.enabled = false; });
+      }
+      S.adTab = 0;
+
+      // ── Regional Prompter ──────────────────────────────────────────
+      // params guarda: rp, rpMode, rpSplitting
+      // Los demás campos (rpCalcMode, rpBase, rpRatio, rpFlip, rpTemplate)
+      // no se persisten en params → se conservan los actuales de S
+      S.rp = !!p.rp;
+      if (p.rpMode)      S.rpMode      = p.rpMode;
+      if (p.rpSplitting) S.rpSplitting = p.rpSplitting;
+
+      // ── Layer Diffusion ────────────────────────────────────────────
+      // layerDiffMode y layerDiffWeight no se guardan en params → se conservan de S
+      S.layerDiff = !!p.layerDiff;
+
+      scheduleSave();
+      this.tab("txt2img");
+
+      // Notificación con resumen de lo restaurado
+      const parts = [];
+      if (S.loras_active.length) parts.push(S.loras_active.length + " LoRA(s)");
+      if (S.adetailer)  parts.push("ADetailer");
+      if (S.upscale)    parts.push("Upscale");
+      if (S.rp)         parts.push("RegPrompter");
+      if (S.layerDiff)  parts.push("LayerDiff");
+      const extra = parts.length ? " · " + parts.join(", ") : "";
+      notify("🔀 Remezcla cargada" + extra);
     },
 
     dl(src, idx) {
