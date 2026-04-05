@@ -397,6 +397,104 @@
   /* ══ LOAD DATA ═══════════════════════════════
      MEJORA-05: no recarga si los datos tienen menos de 5 minutos
   ═════════════════════════════════════════════ */
+  /* ══ BACKEND DETECTION ═══════════════════════
+     Detects the WebUI flavor by probing available
+     endpoints and title, then updates the badge.
+  ═════════════════════════════════════════════ */
+  async function detectBackend() {
+    const badge = document.getElementById("muiBackendBadge");
+    if (!badge) return;
+
+    let name = "";
+    let icon = "🤖";
+
+    // Helper: classify a version/name string
+    function classifyStr(s) {
+      const v = String(s || "").toLowerCase();
+      if (v.includes("reforge") || v.includes("re-forge")) return { name:"reForge", icon:"⚡" };
+      if (v.includes("forge"))                              return { name:"Forge",   icon:"🔥" };
+      if (v.includes("vladmandic") || v.includes("sdnext")) return { name:"SD.Next", icon:"🟣" };
+      if (v.includes("invokeai"))                           return { name:"InvokeAI",icon:"🎨" };
+      if (v.includes("comfy"))                              return { name:"ComfyUI", icon:"🧩" };
+      if (v.includes("automatic") || v.includes("a1111") || v.includes("webui")) return { name:"A1111", icon:"🤖" };
+      return null;
+    }
+
+    // ── 1. /internal/sysinfo ─────────────────────────────────────────────────
+    // A1111 and Forge both expose this. The field names differ slightly.
+    try {
+      const si = await GET("/internal/sysinfo");
+      if (si) {
+        // Try every field that could carry the app name/version
+        const candidates = [
+          si["Version"], si["Program version"], si["version"],
+          si["UI version"], si["app"], si["name"],
+        ];
+        for (const c of candidates) {
+          const cls = classifyStr(c);
+          if (cls) { name = cls.name; icon = cls.icon; break; }
+        }
+        // If still empty but the object exists → it's likely A1111 (it responds but field names vary)
+        if (!name && Object.keys(si).length > 0) { name = "A1111"; icon = "🤖"; }
+      }
+    } catch(e) {}
+
+    // ── 2. /internal/ping ────────────────────────────────────────────────────
+    // Forge/reForge return { "ping": "pong", "backend": "reforge" } or similar
+    if (!name) {
+      try {
+        const ping = await GET("/internal/ping");
+        if (ping) {
+          const allVals = JSON.stringify(ping).toLowerCase();
+          const cls = classifyStr(allVals);
+          if (cls) { name = cls.name; icon = cls.icon; }
+          else if (ping) { name = "A1111"; icon = "🤖"; } // responds → it's A1111-family
+        }
+      } catch(e) {}
+    }
+
+    // ── 3. /sdapi/v1/cmd-flags ───────────────────────────────────────────────
+    // All A1111-family expose this. Forge adds forge-specific keys.
+    if (!name) {
+      try {
+        const flags = await GET("/sdapi/v1/cmd-flags");
+        if (flags) {
+          const dump = JSON.stringify(flags).toLowerCase();
+          const cls = classifyStr(dump);
+          if (cls) { name = cls.name; icon = cls.icon; }
+          else { name = "A1111"; icon = "🤖"; } // has sdapi → A1111-family
+        }
+      } catch(e) {}
+    }
+
+    // ── 4. DOM & page title ──────────────────────────────────────────────────
+    if (!name) {
+      try {
+        const sources = [
+          document.title,
+          document.querySelector("#txt2img_prompt_container")?.id || "",
+          document.querySelector("footer")?.innerText || "",
+          (document.body?.innerText || "").slice(0, 3000),
+        ].join(" ");
+        const cls = classifyStr(sources);
+        if (cls) { name = cls.name; icon = cls.icon; }
+      } catch(e) {}
+    }
+
+    // ── 5. Structural DOM fingerprinting ────────────────────────────────────
+    // A1111 has specific gradio element IDs we can look for
+    if (!name) {
+      const a1111Ids = ["txt2img_prompt", "img2img_prompt", "txt2img_sampling", "txt2img_steps"];
+      const hasA1111Dom = a1111Ids.some(id => document.getElementById(id));
+      if (hasA1111Dom) { name = "A1111"; icon = "🤖"; }
+    }
+
+    if (!name) { name = "SD WebUI"; icon = "🎨"; }
+
+    badge.textContent = icon + " " + name;
+    S._backendName = name;
+  }
+
   async function loadData(force) {
     const AGE = 5 * 60 * 1000;
     if (!force && S._dataLoaded && (Date.now() - S._dataTs) < AGE) {
@@ -434,6 +532,7 @@
     S._dataLoaded = true;
     S._dataTs = Date.now();
     probeCNResizeMode();
+    detectBackend();
     rerender();
   }
 
@@ -686,7 +785,17 @@
       clearInterval(S._pt);
       const imgs=(data.images||[]).map(i=>"data:image/png;base64,"+i);
       const job=S.history.find(j=>j.id===jobId);
-      if(job){job.images=imgs;job.status="done";job.progress=100;}
+      if(job){
+        job.images=imgs; job.status="done"; job.progress=100;
+        // Extract the real seed from data.info (JSON string from the API)
+        try {
+          const info = typeof data.info === "string" ? JSON.parse(data.info) : (data.info||{});
+          const realSeed = info.seed ?? (info.all_seeds && info.all_seeds[0]);
+          if (realSeed !== undefined && realSeed !== -1) {
+            job.params.seed = String(realSeed);
+          }
+        } catch(e2) {}
+      }
       S.liveImg=null;
     } catch(e) {
       clearInterval(S._pt);
@@ -805,7 +914,16 @@
       clearInterval(S._pt);
       const imgs = (data.images||[]).map(i=>"data:image/png;base64,"+i);
       const job = S.history.find(j=>j.id===jobId);
-      if (job) { job.images = imgs; job.status = "done"; job.progress = 100; }
+      if (job) {
+        job.images = imgs; job.status = "done"; job.progress = 100;
+        try {
+          const info = typeof data.info === "string" ? JSON.parse(data.info) : (data.info||{});
+          const realSeed = info.seed ?? (info.all_seeds && info.all_seeds[0]);
+          if (realSeed !== undefined && realSeed !== -1) {
+            job.params.seed = String(realSeed);
+          }
+        } catch(e2) {}
+      }
       S.liveImg = null;
     } catch(e) {
       clearInterval(S._pt);
@@ -1021,6 +1139,8 @@
 .GPBG{height:4px;background:#1e1e2e;border-radius:4px;overflow:hidden;}
 .GPFG{height:100%;background:linear-gradient(90deg,#7c3aed,#06b6d4);border-radius:4px;transition:width .5s;}
 .LP{width:100%;border-radius:9px;overflow:hidden;margin-bottom:9px;background:#0a0a18;min-height:72px;display:flex;align-items:center;justify-content:center;}
+.LP img{width:100%;display:block;border-radius:8px;cursor:pointer;}
+.LP img:active{opacity:0.85;}
 .LP img{width:100%;display:block;border-radius:9px;}
 .LP-PH{color:#4b5563;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:5px;padding:18px;}
 .IG{display:grid;gap:6px;padding:0 12px 10px;}
@@ -1085,7 +1205,7 @@
     </div>
     <div style="display:flex;gap:5px;align-items:center">
       <button class="HRB" onclick="mui.refresh()">🔄</button>
-      <div class="HBG">⚡ ReForge</div>
+      <div class="HBG" id="muiBackendBadge">⚡ …</div>
     </div>
   </div>
   <div class="TABS">
@@ -1722,8 +1842,8 @@ ${rSamplerSection()}
         </div>
         <div class="GPBG"><div class="GPFG" id="gpfg-${id}" style="width:${pct}%"></div></div>
       </div>
-      <div class="LP" id="lp-${id}">
-        ${S.liveImg?`<img src="${S.liveImg}">`:`<div class="LP-PH"><div class="SPIN"></div><span>Esperando primer frame…</span></div>`}
+      <div class="LP" id="lp-${id}" style="${S.liveImg?"cursor:pointer":""}">
+        ${S.liveImg?`<img src="${S.liveImg}" onclick="mui.lbOpen(['${S.liveImg}'],'${S.liveImg}')" style="cursor:pointer;width:100%;border-radius:8px;display:block">`:`<div class="LP-PH"><div class="SPIN"></div><span>Esperando primer frame…</span></div>`}
       </div>`;
     if(error) h+=`<div style="font-size:12px;color:#f87171;margin-top:4px">⚠️ ${esc(error)}</div>`;
     h+=`</div>`;
@@ -1770,7 +1890,7 @@ ${rSamplerSection()}
       if(fg) fg.style.width=pct+"%";
       if(pce) pce.textContent=pct+"%";
       if(ete) ete.textContent=etar>0?"ETA "+etar+"s":pct>0?"procesando…":"esperando…";
-      if(lpe&&S.liveImg) lpe.innerHTML=`<img src="${S.liveImg}">`;
+      if(lpe&&S.liveImg) lpe.innerHTML=`<img src="${S.liveImg}" onclick="mui.lbOpen(['${S.liveImg}'],'${S.liveImg}')" style="cursor:pointer;width:100%;border-radius:8px;display:block">`;
     } else {
       const el=$("tc-"+jobId); if(!el){rerender();return;}
       const tmp=document.createElement("div"); tmp.innerHTML=buildCard(job);
@@ -1916,6 +2036,7 @@ ${rSamplerSection()}
       m.content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover";
       const ov=$("muiOv"); ov.classList.add("open"); applySize();
       rerender(); loadData();
+      detectBackend();
     },
     close(){ $("muiOv").classList.remove("open"); },
     refresh(force){ notify(T.reloading); loadData(force||false); },
