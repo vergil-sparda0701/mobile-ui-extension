@@ -1248,6 +1248,27 @@
 
 @keyframes muiSpin{to{transform:rotate(360deg)}}
 .SPIN{width:15px;height:15px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:muiSpin .6s linear infinite;}
+
+/* Civicomfy integration & mobile layout fixes */
+#civicomfy-open-btn{display:none !important;}
+.civicomfy-overlay{z-index:2147484000 !important;}
+
+@media (max-width: 820px) {
+  .civicomfy-modal-content { max-width: 100% !important; max-height: 100dvh !important; height: 100dvh !important; border-radius: 0 !important; margin: 0 !important; }
+  .civicomfy-search-card { flex-direction: column !important; min-height: min-content !important; height: auto !important; flex: none !important; margin-bottom: 12px !important; overflow: visible !important; }
+  .civicomfy-card-thumb { width: 100% !important; min-width: 100% !important; height: 280px !important; }
+  .civicomfy-card-body { padding: 14px 16px 6px !important; }
+  .civicomfy-card-versions { max-width: 100% !important; min-width: 100% !important; padding: 6px 16px 16px !important; align-items: stretch !important; flex-wrap: wrap !important; }
+  .civicomfy-ver-row { flex: 1 !important; min-width: 100% !important; border-radius: 8px !important; }
+  .civicomfy-settings-container { grid-template-columns: 1fr !important; }
+  .civicomfy-preview-box { flex-direction: column !important; align-items: center !important; text-align: center !important; }
+  .civicomfy-preview-box img { width: 100% !important; max-width: 260px !important; height: auto !important; aspect-ratio: 1/1 !important; margin: 0 auto !important; }
+  .civicomfy-form-row { grid-template-columns: 1fr !important; }
+  .civicomfy-search-controls { flex-direction: column !important; gap: 8px !important; }
+  .civicomfy-search-controls .civicomfy-input, .civicomfy-search-controls .civicomfy-select, .civicomfy-search-controls .civicomfy-button { flex: none !important; width: 100% !important; min-width: 100% !important; }
+  .civicomfy-tabs { overflow-x: auto; scrollbar-width: none; }
+  .civicomfy-tabs::-webkit-scrollbar { display: none; }
+}
 `;
 
   /* ══ HTML ════════════════════════════════════ */
@@ -1977,8 +1998,10 @@ ${rSamplerSection()}
   /* ── EXTRA ────────────────────────────────────────── */
   function rExtra() {
     const stateSize = (() => { try { return (localStorage.getItem("mui_state_v10")||"").length; } catch(e){return 0;} })();
+    const hasCivi = !!document.getElementById("civicomfy-open-btn");
     return `
 <div class="C">
+  ${hasCivi ? `<div class="ABR" style="margin-bottom:15px"><button class="AB" onclick="var btn=document.getElementById('civicomfy-open-btn'); if(btn) btn.click();" style="background:linear-gradient(135deg,#7c3aed44,#06b6d444);border-color:#5c8aff;color:#fff;padding:12px;font-size:14px;font-weight:600">🎨 Abrir Civicomfy (Descargas)</button></div>` : ""}
   <div class="CT">Debug Info</div>
   <div style="font-size:12px;color:#6b7280;line-height:1.9">
     <div>📱 Dispositivo: <span style="color:#e5e7eb">${MOBILE?"Móvil":"PC"}</span></div>
@@ -2110,7 +2133,14 @@ ${rSamplerSection()}
       detectBackend();
     },
     close(){ $("muiOv").classList.remove("open"); },
-    refresh(force){ notify(T.reloading); loadData(force||false); },
+    async refresh(force){ 
+      notify(T.reloading); 
+      try {
+        await POST("/sdapi/v1/refresh-checkpoints", {});
+        await POST("/sdapi/v1/refresh-loras", {});
+      } catch(e) {}
+      loadData(force||false); 
+    },
     tab(t){
       S.tab=t;
       document.querySelectorAll(".TAB").forEach(b=>b.classList.remove("on"));
