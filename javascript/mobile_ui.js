@@ -294,7 +294,7 @@
               if (j.status === "generating") { j.status = "error"; j.error = "Interrumpido (recarga o cierre)"; changed = true; }
             });
             if (changed) saveHistoryDB();
-            if (S.tab === "tasks") rerender();
+            if (S.tab === "tasks" || S.tab === "gallery") rerender();
           }
         };
       };
@@ -346,8 +346,10 @@
     try { const r = await fetch(BASE + p, { headers: H(), credentials: "include" }); return r.ok ? r.json() : null; }
     catch { return null; }
   }
-  // Errores HTTP que tienen sentido reintentar (gateway/tunnel transitorios)
-  const RETRIABLE = new Set([404, 429, 500, 502, 503, 504]);
+  // Solo se reintenta si el servidor AÚN NO procesó la petición.
+  // 500/504 se EXCLUYEN: el servidor pudo haber aceptado el job y ya está generando.
+  // Reintentar un POST a txt2img/img2img lanzaría UNA SEGUNDA generación.
+  const RETRIABLE = new Set([404, 429, 502, 503]);
 
   async function POST(p, b, timeoutMs, _attempt) {
     const ms = timeoutMs || 12 * 60 * 1000;
@@ -403,6 +405,92 @@
       });
       return r.ok || r.status === 200;
     } catch { return false; }
+  }
+
+  // ── Modo recuperación tras 504/502/timeout ────────────────────────────────
+  // El túnel (ngrok/gradio.live) cierra la conexión HTTP antes de que el WebUI
+  // termine de generar. El job sigue vivo en el servidor.
+  // Solución: seguir sondeando /sdapi/v1/progress hasta que el servidor quede
+  // idle, luego informar al usuario sin marcar el job como error fatal.
+  async function recoverGeneration(jobId) {
+    notify("🔄 Túnel caído — el servidor puede seguir generando, monitoreando…");
+    const job = S.history.find(j => j.id === jobId);
+    let seenProgress = false;
+    let lastImg = null;
+    let polls = 0;
+    const MAX_POLLS = 160; // ~4 min a 1.5 s/sondeo
+
+    return new Promise(resolve => {
+      const ri = setInterval(async () => {
+        polls++;
+        const p = await GET("/sdapi/v1/progress?skip_current_image=false");
+
+        if (p) {
+          const pct = Math.round((p.progress || 0) * 100);
+          if (pct > 0) {
+            // ¡El servidor sigue generando! Actualizar UI normalmente
+            seenProgress = true;
+            S.progress = pct;
+            S.eta = Math.round(p.eta_relative || 0);
+            if (p.current_image) {
+              lastImg = "data:image/png;base64," + p.current_image;
+              S.liveImg = lastImg;
+            }
+            if (job) { job.progress = pct; job.eta = S.eta; job.status = "generating"; }
+            updateTaskCard(jobId); updateGenBtn();
+          } else if (seenProgress || polls > 8) {
+            // Progress volvió a 0 → terminó en el servidor pero el túnel ya cortó
+            clearInterval(ri);
+            if (job) {
+              if (lastImg) {
+                job.images = [lastImg];
+                job.status = "done";
+                job.progress = 100;
+                job.error = null;
+                notify("✅ Imagen recuperada — aparece en la Galería");
+              } else {
+                job.status = "error";
+                job.error = "⚠️ La imagen se generó en el servidor pero el túnel (ngrok/gradio.live) cortó la conexión. Ábrela desde la galería del WebUI.";
+                notify("ℹ️ Imagen en el servidor — ábrela desde la galería del WebUI", true);
+              }
+            }
+            S.liveImg = null; S.busy = false; S.progress = 0;
+            updateGenBtn(); updateTaskCard(jobId); saveHistoryDB();
+            resolve(); return;
+          }
+        } else if (polls > 10) {
+          // El servidor tampoco responde al sondeo → error real
+          clearInterval(ri);
+          if (job) {
+            job.status = "error";
+            job.error = "HTTP 504 — El servidor tardó demasiado. Reduce los steps o desactiva Upscale/ADetailer.";
+          }
+          S.liveImg = null; S.busy = false; S.progress = 0;
+          notify("❌ El servidor no respondió. Reduce steps o desactiva Upscale/ADetailer.", true);
+          updateGenBtn(); updateTaskCard(jobId); saveHistoryDB();
+          resolve(); return;
+        }
+
+        if (polls >= MAX_POLLS) {
+          clearInterval(ri);
+          if (job) {
+            if (lastImg) {
+              job.images = [lastImg];
+              job.status = "done";
+              job.progress = 100;
+              job.error = null;
+              notify("✅ Imagen recuperada (timeout alcanzado) — visible en Galería");
+            } else {
+              job.status = "error";
+              job.error = "Timeout de recuperación — el servidor tardó demasiado. Revisa la galería del WebUI.";
+            }
+          }
+          S.liveImg = null; S.busy = false; S.progress = 0;
+          updateGenBtn(); updateTaskCard(jobId); saveHistoryDB();
+          resolve();
+        }
+      }, 1500);
+    });
   }
 
   /* ══ TRIGGER WORDS ═══════════════════════════
@@ -731,6 +819,7 @@
       steps: S.steps, cfg_scale: S.cfg,
       seed: S.seed ? parseInt(S.seed) : -1,
       n_iter: 1, batch_size: count,
+      save_images: true,   // ← guardar en outputs/txt2img-images en el servidor
       alwayson_scripts: {},
     };
 
@@ -892,6 +981,7 @@
     }
 
     const timeout = genTimeout();
+    let _recovered = false;
     try {
       const data = await POST("/sdapi/v1/txt2img", payload, timeout);
       clearInterval(S._pt);
@@ -899,26 +989,32 @@
       const job = S.history.find(j => j.id === jobId);
       if (job) {
         job.images = imgs; job.status = "done"; job.progress = 100;
-        // Extract the real seed from data.info (JSON string from the API)
         try {
           const info = typeof data.info === "string" ? JSON.parse(data.info) : (data.info || {});
           const realSeed = info.seed ?? (info.all_seeds && info.all_seeds[0]);
-          if (realSeed !== undefined && realSeed !== -1) {
-            job.params.seed = String(realSeed);
-          }
+          if (realSeed !== undefined && realSeed !== -1) job.params.seed = String(realSeed);
         } catch (e2) { }
       }
       S.liveImg = null;
     } catch (e) {
       clearInterval(S._pt);
-      const job = S.history.find(j => j.id === jobId);
-      if (job) { job.status = "error"; job.error = e.message; }
-      S.liveImg = null; notify("❌ " + e.message, true);
+      // 504/502/timeout = el túnel cayó pero el servidor puede seguir generando
+      // NO marcar error inmediatamente: entrar en modo recuperación
+      const isGateway = /504|502|Timeout|timeout/i.test(e.message) || e.name === "AbortError";
+      if (isGateway) {
+        _recovered = true;
+        await recoverGeneration(jobId);
+      } else {
+        const job = S.history.find(j => j.id === jobId);
+        if (job) { job.status = "error"; job.error = e.message; }
+        S.liveImg = null; notify("❌ " + e.message, true);
+      }
     }
-    S.busy = false; S.progress = 0;
-    updateGenBtn(); updateTaskCard(jobId);
-    scheduleSave();
-    saveHistoryDB();
+    if (!_recovered) {
+      S.busy = false; S.progress = 0;
+      updateGenBtn(); updateTaskCard(jobId);
+      scheduleSave(); saveHistoryDB();
+    }
   }
 
   /* ══ GENERATE — img2img ══════════════════════
@@ -979,6 +1075,7 @@
       n_iter: 1, batch_size: count,
       denoising_strength: S.i2iDn,
       resize_mode: resizeModeMap[S.i2iResizeMode] ?? 0,
+      save_images: true,   // ← guardar en outputs/img2img-images en el servidor
       alwayson_scripts: {},
     };
 
@@ -1031,6 +1128,7 @@
     }
 
     const timeoutI2I = genTimeout();
+    let _recoveredI2I = false;
     try {
       const data = await POST("/sdapi/v1/img2img", payload, timeoutI2I);
       clearInterval(S._pt);
@@ -1041,22 +1139,27 @@
         try {
           const info = typeof data.info === "string" ? JSON.parse(data.info) : (data.info || {});
           const realSeed = info.seed ?? (info.all_seeds && info.all_seeds[0]);
-          if (realSeed !== undefined && realSeed !== -1) {
-            job.params.seed = String(realSeed);
-          }
+          if (realSeed !== undefined && realSeed !== -1) job.params.seed = String(realSeed);
         } catch (e2) { }
       }
       S.liveImg = null;
     } catch (e) {
       clearInterval(S._pt);
-      const job = S.history.find(j => j.id === jobId);
-      if (job) { job.status = "error"; job.error = e.message; }
-      S.liveImg = null; notify("❌ " + e.message, true);
+      const isGatewayI2I = /504|502|Timeout|timeout/i.test(e.message) || e.name === "AbortError";
+      if (isGatewayI2I) {
+        _recoveredI2I = true;
+        await recoverGeneration(jobId);
+      } else {
+        const job = S.history.find(j => j.id === jobId);
+        if (job) { job.status = "error"; job.error = e.message; }
+        S.liveImg = null; notify("❌ " + e.message, true);
+      }
     }
-    S.busy = false; S.progress = 0;
-    updateGenBtn(); updateTaskCard(jobId);
-    scheduleSave();
-    saveHistoryDB();
+    if (!_recoveredI2I) {
+      S.busy = false; S.progress = 0;
+      updateGenBtn(); updateTaskCard(jobId);
+      scheduleSave(); saveHistoryDB();
+    }
   }
 
   /* ══ STOP GENERATION ════════════════════════
@@ -1372,7 +1475,26 @@
 
 /* ── TagComplete popup en overlay ── */
 #tac_results_popup,.autocompleteResults,.tac-popup{z-index:2147483900 !important;font-family:'Sora',sans-serif !important;font-size:13px !important;max-height:200px !important;overflow-y:auto !important;}
+
+/* ── Gallery ── */
+.GAL-GRID{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;}
+.GAL-ITEM{position:relative;border-radius:10px;overflow:hidden;cursor:pointer;aspect-ratio:1/1;background:#13132a;border:1px solid #1e1e34;transition:transform .15s,border-color .15s;}
+.GAL-ITEM:active{transform:scale(.97);}
+.GAL-ITEM:hover{border-color:#7c3aed66;}
+.GAL-IMG{width:100%;height:100%;object-fit:cover;display:block;}
+.GAL-OVR{position:absolute;bottom:0;left:0;right:0;padding:18px 8px 7px;background:linear-gradient(to top,rgba(0,0,0,.75) 0%,transparent 100%);opacity:0;transition:opacity .2s;}
+.GAL-ITEM:hover .GAL-OVR{opacity:1;}
+.GAL-META{font-size:10px;color:#e5e7eb;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.GAL-SEED{font-size:9px;color:#9ca3af;margin-top:1px;}
+
+/* ── Gallery Lightbox extra ── */
+.LB-ACT{display:flex;gap:7px;margin-top:10px;}
+.LB-ACT-BTN{flex:1;border-radius:9px;border:none;font-size:13px;font-weight:700;padding:10px 6px;cursor:pointer;touch-action:manipulation;transition:opacity .15s;color:#fff;}
+.LB-ACT-BTN:active{opacity:.8;}
+.LB-ACT-RMX{background:linear-gradient(135deg,#7c3aed,#a855f7);}
+.LB-ACT-CPY{background:linear-gradient(135deg,#1e1e2e,#2d2d45);border:1px solid #3d3d5e;color:#9ca3af;}
 `;
+
 
   /* ══ HTML ════════════════════════════════════ */
   const HTML = `
@@ -1393,6 +1515,7 @@
     <button class="TAB on" id="t-txt2img"   onclick="mui.tab('txt2img')">Text2Img</button>
     <button class="TAB"    id="t-img2img"   onclick="mui.tab('img2img')">Img2Img</button>
     <button class="TAB"    id="t-tasks"     onclick="mui.tab('tasks')">Tasks</button>
+    <button class="TAB"    id="t-gallery"   onclick="mui.tab('gallery')">🖼️ Galería</button>
     <button class="TAB"    id="t-imageinfo" onclick="mui.tab('imageinfo')">🔍 Info</button>
     <button class="TAB"    id="t-extra"     onclick="mui.tab('extra')">Extra</button>
   </div>
@@ -1421,6 +1544,10 @@
     </div>
     <div class="LB-INFO">
       <div id="muiLBParams"></div>
+      <div id="muiLBActions" class="LB-ACT" style="display:none">
+        <button class="LB-ACT-BTN LB-ACT-RMX" id="muiLBRemix" onclick="mui.lbRemix()">🔀 Remezclar</button>
+        <button class="LB-ACT-BTN LB-ACT-CPY" id="muiLBCopy" onclick="mui.lbCopyParams()">📋 Copiar params</button>
+      </div>
       <div class="LB-BAR">
         <button class="LB-BTN dl" onclick="mui.lbDl()">💾 Guardar</button>
         <button class="LB-BTN" onclick="mui.lbClose()">✕ Cerrar</button>
@@ -1472,6 +1599,7 @@
     if      (S.tab === "txt2img")   el.innerHTML = rTxt();
     else if (S.tab === "img2img")   el.innerHTML = rI2I();
     else if (S.tab === "tasks")     el.innerHTML = rTasks();
+    else if (S.tab === "gallery")   el.innerHTML = rGallery();
     else if (S.tab === "imageinfo") el.innerHTML = rImageInfo();
     else                            el.innerHTML = rExtra();
   }
@@ -1999,6 +2127,53 @@ ${rSamplerSection()}
         <div style="font-size:12px">Genera tu primera imagen en Text2Img o Img2Img</div>
       </div>`;
     return S.history.map(j => buildCard(j)).join("");
+  }
+
+  /* ── GALLERY ─────────────────────────────────────── */
+  function rGallery() {
+    // Recopilar todas las imágenes de jobs completados
+    const entries = [];
+    S.history.forEach(job => {
+      if (job.status === "done" && job.images && job.images.length) {
+        job.images.forEach((src, i) => {
+          entries.push({ src, jobId: job.id, imgIdx: i, params: job.params });
+        });
+      }
+    });
+
+    if (!entries.length) return `
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <button class="EBTN" onclick="mui.galRefresh()" style="font-size:11px;padding:4px 12px" title="Refrescar galería">🔄 Refrescar</button>
+      </div>
+      <div class="TEMPTY">
+        <div class="EI">🖼️</div>
+        <div style="color:#9ca3af;font-size:14px;font-weight:600;margin-bottom:5px">Galería vacía</div>
+        <div style="font-size:12px">Las imágenes generadas aparecerán aquí</div>
+        <button class="EBTN" onclick="mui.galRefresh()" style="margin-top:14px;font-size:12px;padding:7px 18px;color:#06b6d4;border-color:#06b6d444">🔄 Refrescar galería</button>
+      </div>`;
+
+    const total = entries.length;
+    const cards = entries.map(({ src, jobId, imgIdx, params }) => {
+      const mdl = (params.model || "—").replace(/\.[^/.]+$/, "").slice(0, 18);
+      return `
+<div class="GAL-ITEM" onclick="mui.galOpen('${jobId}', ${imgIdx})">
+  <img src="${src}" loading="lazy" class="GAL-IMG">
+  <div class="GAL-OVR">
+    <div class="GAL-META">${esc(mdl)}</div>
+    <div class="GAL-SEED">${params.seed && params.seed !== '−1' && params.seed !== '-1' ? '🌱 ' + String(params.seed).slice(0,10) : ''}</div>
+  </div>
+</div>`;
+    }).join("");
+
+    return `
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-shrink:0">
+  <span style="font-size:12px;color:#6b7280">${total} imagen${total !== 1 ? 'es' : ''} generada${total !== 1 ? 's' : ''}</span>
+  <div style="display:flex;gap:6px">
+    <button class="EBTN" onclick="rerender()" style="font-size:11px;padding:4px 10px" title="Refrescar galería">🔄 Refrescar</button>
+    <button class="EBTN" onclick="mui.galClear()" style="color:#f87171;border-color:#ef444433;font-size:11px;padding:4px 10px">🗑️ Limpiar</button>
+  </div>
+</div>
+<div class="GAL-GRID">${cards}</div>`;
   }
 
   function buildCard(job) {
@@ -2625,18 +2800,24 @@ ${rSamplerSection()}
         this.dl(job.images[idx], idx);
       }
     },
+    // jobId guardado para remix/copy desde el lightbox
+    _lbJobId: null,
+
     lbOpen(images, activeSrc, jobId) {
       _lbImages = Array.isArray(images) ? images : [activeSrc];
       _lbIdx = _lbImages.indexOf(activeSrc);
       if (_lbIdx < 0) _lbIdx = 0;
+      this._lbJobId = jobId || null;
 
       const prm = $("muiLBParams");
+      const acts = $("muiLBActions");
       if (prm) {
-        let job = S.history.find(j => j.id === jobId);
+        let job = jobId ? S.history.find(j => j.id === jobId) : null;
         if (job && job.params) {
           const p = job.params;
           const safeP = encodeURIComponent(p.prompt || "");
           const safeN = encodeURIComponent(p.neg || "");
+          const mdl = (p.model || "—").replace(/\.[^/.]+$/, "").slice(0, 28);
 
           let html = `<div class="LB-PRM-BOX">
             <div class="LB-PRM-H">
@@ -2649,20 +2830,166 @@ ${rSamplerSection()}
           if (p.neg) {
             html += `<div class="LB-PRM-BOX">
               <div class="LB-PRM-H">
-                <span class="LB-PRM-TC">🚫 NEGATIVE PROMPT</span>
+                <span class="LB-PRM-TC">🚫 NEGATIVE</span>
                 <button class="LB-CPY" onclick="navigator.clipboard.writeText(decodeURIComponent('${safeN}')).then(()=>mui.lbMsg('📋 Negativo copiado'))">Copiar</button>
               </div>
               <div class="LB-PRM-C">${esc(p.neg)}</div>
             </div>`;
           }
+
+          // Chips de parámetros
+          html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
+            <span class="CHIP">${esc(mdl)}</span>
+            <span class="CHIP">${p.steps}s · CFG ${p.cfg}</span>
+            <span class="CHIP">${p.w}×${p.h}</span>
+            ${p.sampler ? `<span class="CHIP">${esc(p.sampler)}</span>` : ""}
+            ${p.seed && p.seed !== '-1' && p.seed !== '\u22121' ? `<span class="CHIP HL">🌱 ${p.seed}</span>` : ""}
+            ${p.upscale ? `<span class="CHIP HL">Upscale ×${p.upscaleX}</span>` : ""}
+            ${p.adetailer ? `<span class="CHIP HL">ADetailer</span>` : ""}
+            ${p.loras && p.loras !== "—" ? `<span class="CHIP HL">✨ ${esc(p.loras.slice(0,24))}</span>` : ""}
+          </div>`;
+
           prm.innerHTML = html;
+          if (acts) acts.style.display = "flex";
         } else {
           prm.innerHTML = "";
+          if (acts) acts.style.display = "none";
         }
       }
 
       this._lbRender();
       $("muiLB").classList.add("open");
+    },
+
+    // Abrir lightbox desde galería
+    galOpen(jobId, imgIdx) {
+      const job = S.history.find(j => j.id === jobId);
+      if (!job || !job.images || !job.images[imgIdx]) return;
+      this.lbOpen(job.images, job.images[imgIdx], jobId);
+    },
+
+    // Limpiar galería (solo las imágenes, no las tareas en error)
+    galClear() {
+      S.history = S.history.filter(j => j.status !== "done");
+      saveHistoryDB(); rerender();
+      notify("🗑️ Galería limpiada");
+    },
+
+    parseSDInfo(info) {
+      if (!info) return {};
+      const p = { prompt: "", neg: "", sampler: "Euler a", steps: 20, cfg: 7, seed: "-1", count: 1, ts: new Date().toISOString() };
+      try {
+        // El formato de SD es: Prompt \n Negative Prompt: ... \n Params: ...
+        const parts = info.split("\n");
+        p.prompt = parts[0].trim();
+        const negLine = parts.find(l => l.startsWith("Negative prompt: "));
+        if (negLine) p.neg = negLine.replace("Negative prompt: ", "").trim();
+
+        const lastLine = parts[parts.length - 1];
+        if (lastLine.includes("Steps: ")) {
+          const m = (k) => {
+            const match = lastLine.match(new RegExp(k + ": ([^,]+)"));
+            return match ? match[1].trim() : null;
+          };
+          p.steps = parseInt(m("Steps")) || 20;
+          p.sampler = m("Sampler") || "Euler a";
+          p.cfg = parseFloat(m("CFG scale")) || 7;
+          p.seed = m("Seed") || "-1";
+          const size = m("Size");
+          if (size) {
+            const [w, h] = size.split("x");
+            p.w = parseInt(w); p.h = parseInt(h);
+          }
+          const mdl = m("Model"); if (mdl) p.model = mdl;
+        }
+      } catch (e) { console.error("ParseSDInfo error:", e); }
+      return p;
+    },
+
+    // Refrescar galería: escanea el servidor y recarga IndexedDB
+    async galRefresh() {
+      notify("🔍 Escaneando disco del servidor…");
+      let serverJobs = [];
+      try {
+        const res = await (await fetch("/mui/v1/scan_gallery?limit=150")).json();
+        if (res && res.images) {
+          serverJobs = res.images.map(img => {
+            const params = this.parseSDInfo(img.info);
+            params.ts = img.ts; 
+            return {
+              id: "srv-" + img.mtime, // ID basado en mtime para evitar duplicados
+              params,
+              images: [img.src],
+              status: "done",
+              _isServer: true
+            };
+          });
+        }
+      } catch (e) { console.error("Err scan:", e); }
+
+      notify("🔄 Sincronizando historial local…");
+      try {
+        const req = indexedDB.open("mui_db", 1);
+        req.onsuccess = e => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains("store")) { 
+            this._mergeAndRender(serverJobs); return; 
+          }
+          const tx = db.transaction("store", "readonly");
+          const r2 = tx.objectStore("store").get("history");
+          r2.onsuccess = e2 => {
+            const dbHistory = e2.target.result || [];
+            this._mergeAndRender(serverJobs, dbHistory);
+          };
+          r2.onerror = () => this._mergeAndRender(serverJobs);
+        };
+        req.onerror = () => this._mergeAndRender(serverJobs);
+      } catch (_) { this._mergeAndRender(serverJobs); }
+    },
+
+    _mergeAndRender(serverJobs, dbHistory = []) {
+      const memIds = new Set(S.history.map(j => j.id));
+      
+      // 1. Añadir lo del DB si no está en memoria
+      dbHistory.forEach(j => { if (!memIds.has(j.id)) S.history.push(j); });
+
+      // 2. Mezclar lo del Servidor
+      // Prioridad: conservamos los de memoria/DB si tienen la misma imagen (o aproximada)
+      // Pero como el servidor tiene la ruta real /file=..., los añadimos si no existen
+      const allSrcs = new Set();
+      S.history.forEach(j => (j.images||[]).forEach(s => allSrcs.add(s)));
+      
+      serverJobs.forEach(sj => {
+        if (!allSrcs.has(sj.images[0])) {
+          S.history.push(sj);
+        }
+      });
+
+      // Ordenar por timestamp
+      S.history.sort((a, b) => {
+        const ta = a.params?.ts || "";
+        const tb = b.params?.ts || "";
+        return tb.localeCompare(ta);
+      });
+
+      const count = S.history.filter(j => j.status === "done" && j.images?.length).length;
+      notify("✅ Galería lista (" + count + " imágenes)");
+      rerender();
+    },
+
+    // Remezclar desde lightbox
+    lbRemix() {
+      if (!this._lbJobId) return;
+      const job = S.history.find(j => j.id === this._lbJobId);
+      if (!job) return;
+      this.lbClose();
+      this.remixParams(this._lbJobId);
+    },
+
+    // Copiar parámetros desde lightbox
+    lbCopyParams() {
+      if (!this._lbJobId) return;
+      this.copyParams(this._lbJobId);
     },
     lbMsg(msg) {
       notify(msg);
