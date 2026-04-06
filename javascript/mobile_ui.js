@@ -2169,7 +2169,7 @@ ${rSamplerSection()}
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-shrink:0">
   <span style="font-size:12px;color:#6b7280">${total} imagen${total !== 1 ? 'es' : ''} generada${total !== 1 ? 's' : ''}</span>
   <div style="display:flex;gap:6px">
-    <button class="EBTN" onclick="rerender()" style="font-size:11px;padding:4px 10px" title="Refrescar galería">🔄 Refrescar</button>
+    <button class="EBTN" onclick="mui.galRefresh()" style="font-size:11px;padding:4px 10px" title="Refrescar galería">🔄 Refrescar</button>
     <button class="EBTN" onclick="mui.galClear()" style="color:#f87171;border-color:#ef444433;font-size:11px;padding:4px 10px">🗑️ Limpiar</button>
   </div>
 </div>
