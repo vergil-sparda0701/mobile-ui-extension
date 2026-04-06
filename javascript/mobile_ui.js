@@ -248,6 +248,46 @@
   let _saveTimer;
   function scheduleSave() { clearTimeout(_saveTimer); _saveTimer = setTimeout(saveState, 800); }
 
+  /* ══ HISTORIAL IndexedDB ═════════════════════ */
+  function saveHistoryDB() {
+    try {
+      if (S.history.length > 30) { S.history = S.history.slice(0, 30); }
+      const req = indexedDB.open("mui_db", 1);
+      req.onupgradeneeded = e => e.target.result.createObjectStore("store");
+      req.onsuccess = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains("store")) return;
+        const tx = db.transaction("store", "readwrite");
+        tx.objectStore("store").put(S.history, "history");
+      };
+    } catch(e) {}
+  }
+
+  function loadHistoryDB() {
+    try {
+      const req = indexedDB.open("mui_db", 1);
+      req.onupgradeneeded = e => e.target.result.createObjectStore("store");
+      req.onsuccess = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains("store")) return;
+        const tx = db.transaction("store", "readonly");
+        const req2 = tx.objectStore("store").get("history");
+        req2.onsuccess = e2 => {
+          if (e2.target.result && Array.isArray(e2.target.result)) {
+            S.history = e2.target.result;
+            // Marcar como error si quedó atascado generando al recargar
+            let changed = false;
+            S.history.forEach(j => {
+              if (j.status === "generating") { j.status = "error"; j.error = "Interrumpido (recarga o cierre)"; changed = true; }
+            });
+            if (changed) saveHistoryDB();
+            if (S.tab === "tasks") rerender();
+          }
+        };
+      };
+    } catch(e) {}
+  }
+
   /* ══ PREVIEW URLS ════════════════════════════ */
   const BASE = window.location.origin;
   function previewUrls(fp) {
@@ -595,6 +635,7 @@
     };
     S.busy=true; S.progress=0; S.eta=0; S.liveImg=null;
     S.history.unshift({id:jobId,params,images:[],status:"generating",progress:0});
+    saveHistoryDB();
     updateGenBtn(); mui.tab("tasks");
 
     if ((S.upscale || (S.adetailer && S.adSlots.filter(s=>s.enabled).length > 1))
@@ -806,6 +847,7 @@
     S.busy=false; S.progress=0;
     updateGenBtn(); updateTaskCard(jobId);
     scheduleSave();
+    saveHistoryDB();
   }
 
   /* ══ GENERATE — img2img ══════════════════════
@@ -832,6 +874,7 @@
     };
     S.busy = true; S.progress = 0; S.eta = 0; S.liveImg = null;
     S.history.unshift({id:jobId,params,images:[],status:"generating",progress:0});
+    saveHistoryDB();
     updateGenBtn(); mui.tab("tasks");
 
     S._pt = setInterval(async()=>{
@@ -934,6 +977,7 @@
     S.busy = false; S.progress = 0;
     updateGenBtn(); updateTaskCard(jobId);
     scheduleSave();
+    saveHistoryDB();
   }
 
   /* ══ STOP GENERATION ════════════════════════
@@ -947,7 +991,7 @@
       updateGenBtn();
       notify(T.stopped);
       const gen = S.history.find(j=>j.status==="generating");
-      if (gen) { gen.status = "error"; gen.error = "Detenido por el usuario"; updateTaskCard(gen.id); }
+      if (gen) { gen.status = "error"; gen.error = "Detenido por el usuario"; updateTaskCard(gen.id); saveHistoryDB(); }
     } catch(e) {
       notify(T.stopError, true);
     }
@@ -1159,16 +1203,29 @@
 .PK{font-size:10px;color:#6b7280;font-weight:500;flex-shrink:0;}
 .PV{font-size:11px;color:#e5e7eb;font-weight:500;text-align:right;max-width:65%;word-break:break-all;}
 
-/* Lightbox MEJORA-11 */
-#muiLB{display:none;position:fixed;inset:0;z-index:2147483900;background:rgba(0,0,0,.93);align-items:center;justify-content:center;flex-direction:column;}
+/* Lightbox Tensor.art style */
+#muiLB{display:none;position:fixed;inset:0;z-index:2147483900;background:rgba(0,0,0,.93);align-items:center;justify-content:center;padding:15px;box-sizing:border-box;}
 #muiLB.open{display:flex;}
-#muiLB img{max-width:96vw;max-height:86vh;border-radius:10px;object-fit:contain;}
-.LB-BAR{display:flex;gap:10px;margin-top:12px;align-items:center;}
-.LB-BTN{background:#1e1e2e;border:1px solid #2d2d45;color:#e5e7eb;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;touch-action:manipulation;}
-.LB-BTN.dl{background:linear-gradient(135deg,#7c3aed,#06b6d4);border:none;font-weight:700;}
-.LB-NAV{display:flex;gap:8px;}
-.LB-N{background:#1e1e2e;border:1px solid #2d2d45;color:#9ca3af;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}
-.LB-N:disabled{opacity:.3;cursor:default;}
+.LB-PANEL{background:#13132a;border:1px solid #1e1e34;border-radius:12px;width:100%;max-width:500px;max-height:100%;display:flex;flex-direction:column;overflow:hidden;}
+.LB-IMG-WRAP{position:relative;background:#0a0a18;display:flex;align-items:center;justify-content:center;padding:10px;flex-shrink:0;}
+.LB-IMG-WRAP img{max-width:100%;max-height:45vh;border-radius:8px;object-fit:contain;cursor:zoom-in;}
+.LB-NAV{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);display:flex;justify-content:space-between;padding:0 10px;pointer-events:none;}
+.LB-N{background:rgba(30,30,46,0.8);border:1px solid #2d2d45;color:#e5e7eb;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;backdrop-filter:blur(4px);touch-action:manipulation;}
+.LB-N:disabled{opacity:0.3;cursor:default;}
+.LB-INFO{padding:12px;overflow-y:auto;flex:1;}
+.LB-PRM-BOX{background:#0a0a18;border:1px solid #1e1e34;border-radius:8px;padding:10px;margin-bottom:10px;}
+.LB-PRM-H{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.LB-PRM-T{font-size:11px;font-weight:700;color:#06b6d4;letter-spacing:0.05em;}
+.LB-PRM-TC{font-size:11px;font-weight:700;color:#ef4444;letter-spacing:0.05em;}
+.LB-PRM-C{font-size:12px;color:#d1d5db;line-height:1.5;word-wrap:break-word;}
+.LB-CPY{background:#1e1e2e;border:1px solid #2d2d45;color:#9ca3af;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;touch-action:manipulation;}
+.LB-BAR{display:flex;gap:10px;margin-top:auto;padding-top:10px;}
+.LB-BTN{flex:1;background:#1e1e2e;border:1px solid #2d2d45;color:#e5e7eb;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;text-align:center;touch-action:manipulation;}
+.LB-BTN.dl{background:linear-gradient(135deg,#7c3aed,#06b6d4);border:none;}
+
+#muiFS{display:none;position:fixed;inset:0;z-index:2147483999;background:rgba(0,0,0,0.95);cursor:zoom-out;align-items:center;justify-content:center;}
+#muiFS.open{display:flex;}
+#muiFS img{max-width:100vw;max-height:100vh;object-fit:contain;margin:auto;display:block;}
 
 .MDL{display:none;position:fixed;inset:0;z-index:2147483700;background:rgba(0,0,0,.82);align-items:flex-end;}
 .MDL.open{display:flex;}
@@ -1227,17 +1284,28 @@
     </button>
   </div>
 </div>
-<!-- Lightbox MEJORA-11 -->
+<!-- Lightbox Tensor.art style -->
 <div id="muiLB" onclick="if(event.target===this)mui.lbClose()">
-  <img id="muiLBImg" src="" alt="preview">
-  <div class="LB-BAR">
-    <div class="LB-NAV">
-      <button class="LB-N" id="muiLBPrev" onclick="mui.lbNav(-1)">‹</button>
-      <button class="LB-N" id="muiLBNext" onclick="mui.lbNav(1)">›</button>
+  <div class="LB-PANEL">
+    <div class="LB-IMG-WRAP">
+      <img id="muiLBImg" src="" alt="preview" onclick="mui.fsOpen(this.src)">
+      <div class="LB-NAV">
+        <button class="LB-N" id="muiLBPrev" onclick="mui.lbNav(-1)">‹</button>
+        <button class="LB-N" id="muiLBNext" onclick="mui.lbNav(1)">›</button>
+      </div>
     </div>
-    <button class="LB-BTN dl" onclick="mui.lbDl()">💾 Guardar</button>
-    <button class="LB-BTN" onclick="mui.lbClose()">✕ Cerrar</button>
+    <div class="LB-INFO">
+      <div id="muiLBParams"></div>
+      <div class="LB-BAR">
+        <button class="LB-BTN dl" onclick="mui.lbDl()">💾 Guardar</button>
+        <button class="LB-BTN" onclick="mui.lbClose()">✕ Cerrar</button>
+      </div>
+    </div>
   </div>
+</div>
+<!-- Full Size Modal -->
+<div id="muiFS" onclick="this.classList.remove('open')">
+  <img id="muiFSImg" src="" alt="full size">
 </div>
 <!-- Model modal -->
 <div id="mdlM" class="MDL" onclick="if(event.target===this)mui.cm('mdlM')">
@@ -1843,7 +1911,7 @@ ${rSamplerSection()}
         <div class="GPBG"><div class="GPFG" id="gpfg-${id}" style="width:${pct}%"></div></div>
       </div>
       <div class="LP" id="lp-${id}" style="${S.liveImg?"cursor:pointer":""}">
-        ${S.liveImg?`<img src="${S.liveImg}" onclick="mui.lbOpen(['${S.liveImg}'],'${S.liveImg}')" style="cursor:pointer;width:100%;border-radius:8px;display:block">`:`<div class="LP-PH"><div class="SPIN"></div><span>Esperando primer frame…</span></div>`}
+        ${S.liveImg?`<img src="${S.liveImg}" onclick="mui.lbOpen(['${S.liveImg}'],'${S.liveImg}','${id}')" style="cursor:pointer;width:100%;border-radius:8px;display:block">`:`<div class="LP-PH"><div class="SPIN"></div><span>Esperando primer frame…</span></div>`}
       </div>`;
     if(error) h+=`<div style="font-size:12px;color:#f87171;margin-top:4px">⚠️ ${esc(error)}</div>`;
     h+=`</div>`;
@@ -1851,9 +1919,9 @@ ${rSamplerSection()}
       h+=`<div class="IG ${igc}">`;
       // MEJORA-11: onclick abre lightbox en lugar de nueva pestaña
       images.forEach((src,i)=>{
-        h+=`<div class="IW" onclick="mui.lbOpen(${JSON.stringify(images).replace(/'/g,"\\'")},'${escA(src)}')">
+        h+=`<div class="IW" onclick="mui.lbOpenFromHistory('${id}', ${i})">
           <img src="${src}" loading="lazy">
-          <div class="IACT"><button class="IA" onclick="event.stopPropagation();mui.dl('${escA(src)}',${i})">💾</button></div>
+          <div class="IACT"><button class="IA" onclick="event.stopPropagation();mui.dlFromHistory('${id}', ${i})">💾</button></div>
         </div>`;
       });
       h+=`</div>`;
@@ -1893,7 +1961,7 @@ ${rSamplerSection()}
       if(fg) fg.style.width=pct+"%";
       if(pce) pce.textContent=pct+"%";
       if(ete) ete.textContent=etar>0?"ETA "+etar+"s":pct>0?"procesando…":"esperando…";
-      if(lpe&&S.liveImg) lpe.innerHTML=`<img src="${S.liveImg}" onclick="mui.lbOpen(['${S.liveImg}'],'${S.liveImg}')" style="cursor:pointer;width:100%;border-radius:8px;display:block">`;
+      if(lpe&&S.liveImg) lpe.innerHTML=`<img src="${S.liveImg}" onclick="mui.lbOpen(['${S.liveImg}'],'${S.liveImg}','${jobId}')" style="cursor:pointer;width:100%;border-radius:8px;display:block">`;
     } else {
       const el=$("tc-"+jobId); if(!el){rerender();return;}
       const tmp=document.createElement("div"); tmp.innerHTML=buildCard(job);
@@ -1924,7 +1992,7 @@ ${rSamplerSection()}
   </div>
   <div class="ABR" style="margin-top:10px">
     <button class="AB" onclick="mui.refresh(true)">🔄 Recargar forzado</button>
-    <button class="AB" onclick="S.history=[];mui.tab('tasks')" style="color:#f87171;border-color:#ef444433">🗑️ Limpiar historial</button>
+    <button class="AB" onclick="S.history=[];mui.tab('tasks');saveHistoryDB()" style="color:#f87171;border-color:#ef444433">🗑️ Limpiar historial</button>
   </div>
   <div class="ABR" style="margin-top:6px">
     <button class="AB" onclick="mui.clearSaved()" style="color:#f59e0b;border-color:#f59e0b33">⚠️ Borrar estado guardado</button>
@@ -2407,12 +2475,59 @@ ${rSamplerSection()}
     },
 
     // ── Lightbox ─────────────────────────────────
-    lbOpen(images, activeSrc){
+    lbOpenFromHistory(jobId, idx){
+      let job = S.history.find(j => j.id === jobId);
+      if (job && job.images && job.images[idx]) {
+        this.lbOpen(job.images, job.images[idx], jobId);
+      }
+    },
+    dlFromHistory(jobId, idx){
+      let job = S.history.find(j => j.id === jobId);
+      if (job && job.images && job.images[idx]) {
+        this.dl(job.images[idx], idx);
+      }
+    },
+    lbOpen(images, activeSrc, jobId){
       _lbImages = Array.isArray(images) ? images : [activeSrc];
       _lbIdx = _lbImages.indexOf(activeSrc);
       if (_lbIdx < 0) _lbIdx = 0;
+      
+      const prm = $("muiLBParams");
+      if (prm) {
+        let job = S.history.find(j => j.id === jobId);
+        if (job && job.params) {
+          const p = job.params;
+          const safeP = encodeURIComponent(p.prompt || "");
+          const safeN = encodeURIComponent(p.neg || "");
+          
+          let html = `<div class="LB-PRM-BOX">
+            <div class="LB-PRM-H">
+              <span class="LB-PRM-T">✏️ PROMPT</span>
+              <button class="LB-CPY" onclick="navigator.clipboard.writeText(decodeURIComponent('${safeP}')).then(()=>mui.lbMsg('📋 Prompt copiado'))">Copiar</button>
+            </div>
+            <div class="LB-PRM-C">${esc(p.prompt)}</div>
+          </div>`;
+          
+          if (p.neg) {
+            html += `<div class="LB-PRM-BOX">
+              <div class="LB-PRM-H">
+                <span class="LB-PRM-TC">🚫 NEGATIVE PROMPT</span>
+                <button class="LB-CPY" onclick="navigator.clipboard.writeText(decodeURIComponent('${safeN}')).then(()=>mui.lbMsg('📋 Negativo copiado'))">Copiar</button>
+              </div>
+              <div class="LB-PRM-C">${esc(p.neg)}</div>
+            </div>`;
+          }
+          prm.innerHTML = html;
+        } else {
+          prm.innerHTML = "";
+        }
+      }
+
       this._lbRender();
       $("muiLB").classList.add("open");
+    },
+    lbMsg(msg){
+      notify(msg);
     },
     _lbRender(){
       const img = $("muiLBImg"); if(!img) return;
@@ -2427,6 +2542,14 @@ ${rSamplerSection()}
     },
     lbDl(){ if(_lbImages[_lbIdx]) this.dl(_lbImages[_lbIdx], _lbIdx); },
     lbClose(){ $("muiLB").classList.remove("open"); },
+    fsOpen(src){
+      const fs = $("muiFS");
+      const img = $("muiFSImg");
+      if(fs && img){
+        img.src = src;
+        fs.classList.add("open");
+      }
+    },
 
     // ── Prompts aleatorios — MEJORA-04: 50+ ideas ──
     rp(){
@@ -2657,6 +2780,7 @@ ${rSamplerSection()}
   /* ══ INIT ════════════════════════════════════ */
   function init() {
     loadState(); // MEJORA-03: restaurar estado persistido
+    loadHistoryDB();
     const st=document.createElement("style"); st.id="muiCSS"; st.textContent=CSS; document.head.appendChild(st);
     const d=document.createElement("div"); d.id="muiRoot"; d.innerHTML=HTML;
     document.documentElement.appendChild(d);
