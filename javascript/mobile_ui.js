@@ -67,15 +67,15 @@
         if (m) bs = parseFloat(m[1]) || 1;
       }
       return bz * hz * bs;
-    } catch(e) { return 1; }
+    } catch (e) { return 1; }
   }
-  function getVW(){ return window.visualViewport ? window.visualViewport.width  : window.innerWidth; }
-  function getVH(){ return window.visualViewport ? window.visualViewport.height : window.innerHeight; }
+  function getVW() { return window.visualViewport ? window.visualViewport.width : window.innerWidth; }
+  function getVH() { return window.visualViewport ? window.visualViewport.height : window.innerHeight; }
   function applySize() {
     const ov = $("muiOv"); if (!ov) return;
     const zoom = getBodyZoom();
-    ov.style.setProperty("zoom",   (1 / zoom).toFixed(6), "important");
-    ov.style.setProperty("width",  Math.ceil(getVW() * zoom) + "px", "important");
+    ov.style.setProperty("zoom", (1 / zoom).toFixed(6), "important");
+    ov.style.setProperty("width", Math.ceil(getVW() * zoom) + "px", "important");
     ov.style.setProperty("height", Math.ceil(getVH() * zoom) + "px", "important");
     ov.style.setProperty("max-height", Math.ceil(getVH() * zoom) + "px", "important");
   }
@@ -112,10 +112,10 @@
     adetailer: false,
     adTab: 0,
     adSlots: [
-      { enabled: true,  model: "face_yolov8n.pt",         conf: 0.3, dn: 0.4, prompt: "", neg: "" },
-      { enabled: false, model: "hand_yolov8n.pt",          conf: 0.3, dn: 0.4, prompt: "", neg: "" },
-      { enabled: false, model: "person_yolov8n-seg.pt",    conf: 0.3, dn: 0.4, prompt: "", neg: "" },
-      { enabled: false, model: "face_yolov8s.pt",          conf: 0.3, dn: 0.4, prompt: "", neg: "" },
+      { enabled: true, model: "face_yolov8n.pt", conf: 0.3, dn: 0.4, prompt: "", neg: "" },
+      { enabled: false, model: "hand_yolov8n.pt", conf: 0.3, dn: 0.4, prompt: "", neg: "" },
+      { enabled: false, model: "person_yolov8n-seg.pt", conf: 0.3, dn: 0.4, prompt: "", neg: "" },
+      { enabled: false, model: "face_yolov8s.pt", conf: 0.3, dn: 0.4, prompt: "", neg: "" },
     ],
 
     // ── Regional Prompter ──────────────────
@@ -138,18 +138,24 @@
 
     // ── ControlNet ─────────────────────────
     cnUnits: [
-      { enabled: false, imageB64: null, preprocessedB64: null, preprocessor: "none", model: "none",
+      {
+        enabled: false, imageB64: null, preprocessedB64: null, preprocessor: "none", model: "none",
         weight: 1.0, startStep: 0, endStep: 1, mode: "Balanced", resize: "Crop and Resize",
         pixelPerfect: false, lowVram: false,
-        detectRes: 512, threshA: -1, threshB: -1, detecting: false },
-      { enabled: false, imageB64: null, preprocessedB64: null, preprocessor: "none", model: "none",
+        detectRes: 512, threshA: -1, threshB: -1, detecting: false
+      },
+      {
+        enabled: false, imageB64: null, preprocessedB64: null, preprocessor: "none", model: "none",
         weight: 1.0, startStep: 0, endStep: 1, mode: "Balanced", resize: "Crop and Resize",
         pixelPerfect: false, lowVram: false,
-        detectRes: 512, threshA: -1, threshB: -1, detecting: false },
-      { enabled: false, imageB64: null, preprocessedB64: null, preprocessor: "none", model: "none",
+        detectRes: 512, threshA: -1, threshB: -1, detecting: false
+      },
+      {
+        enabled: false, imageB64: null, preprocessedB64: null, preprocessor: "none", model: "none",
         weight: 1.0, startStep: 0, endStep: 1, mode: "Balanced", resize: "Crop and Resize",
         pixelPerfect: false, lowVram: false,
-        detectRes: 512, threshA: -1, threshB: -1, detecting: false },
+        detectRes: 512, threshA: -1, threshB: -1, detecting: false
+      },
     ],
     cnTab: 0,
     cnModels: [],
@@ -160,10 +166,10 @@
     models: [], loras: [], samplers: [], schedulers: [], upscalers: [],
     // FIX BUG-06: lista extendida de modelos ADetailer
     adModels: [
-      "face_yolov8n.pt","face_yolov8s.pt","face_yolov9c.pt",
-      "hand_yolov8n.pt","hand_yolov9c.pt",
-      "person_yolov8n-seg.pt","person_yolov9c-seg.pt",
-      "mediapipe_face_full","mediapipe_face_short","mediapipe_face_mesh",
+      "face_yolov8n.pt", "face_yolov8s.pt", "face_yolov9c.pt",
+      "hand_yolov8n.pt", "hand_yolov9c.pt",
+      "person_yolov8n-seg.pt", "person_yolov9c-seg.pt",
+      "mediapipe_face_full", "mediapipe_face_short", "mediapipe_face_mesh",
     ],
 
     // ── Gen state ──────────────────────────
@@ -174,44 +180,51 @@
     _dataLoaded: false,          // MEJORA-05: flag para no recargar innecesariamente
     _dataTs: 0,
     _modelChanging: false,       // MEJORA-08: flag de modelo en carga
-    _cnResizeModeInt:    false,
+    _cnResizeModeInt: false,
     _cnResizeModeProbed: false,
+
+    // ── Extensions ──────────────────────────
+    _tacInstalled: false,   // a1111-sd-webui-tagcomplete detectado
+    _imgInfoInstalled: false,   // sd-image-info detectado
+    _imgInfoB64: null,    // Imagen actual en el tab Info
+    _imgInfoData: null,    // Metadatos parseados
+    _imgInfoRaw: '',      // Respuesta cruda de /sdapi/v1/png-info
   };
 
   const AR = {
-    portrait:  { lbl:"2:3",   icon:"▯", sub:"768×1152",  w:768,  h:1152 },
-    landscape: { lbl:"3:2",   icon:"▭", sub:"1152×768",  w:1152, h:768  },
-    square:    { lbl:"1:1",   icon:"□", sub:"1024×1024", w:1024, h:1024 },
-    custom:    { lbl:"custom",icon:"⊞", sub:"custom",    w:null, h:null  },
+    portrait: { lbl: "2:3", icon: "▯", sub: "768×1152", w: 768, h: 1152 },
+    landscape: { lbl: "3:2", icon: "▭", sub: "1152×768", w: 1152, h: 768 },
+    square: { lbl: "1:1", icon: "□", sub: "1024×1024", w: 1024, h: 1024 },
+    custom: { lbl: "custom", icon: "⊞", sub: "custom", w: null, h: null },
   };
 
   /* ══ UTILS ═══════════════════════════════════ */
-  const esc   = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-  const escA  = s => String(s||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-  const $     = id => document.getElementById(id);
-  const clamp = (v,a,b) => Math.min(b,Math.max(a,v));
-  const uid   = () => Math.random().toString(36).slice(2,9);
-  const nowTs = () => new Date().toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"});
+  const esc = s => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const escA = s => String(s || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const $ = id => document.getElementById(id);
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const uid = () => Math.random().toString(36).slice(2, 9);
+  const nowTs = () => new Date().toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" });
 
   // MEJORA-09: ajusta a múltiplo de 8
-  function snap8(v){ return Math.max(64, Math.round(parseInt(v)||512) & ~7); }
+  function snap8(v) { return Math.max(64, Math.round(parseInt(v) || 512) & ~7); }
 
   /* ══ PERSISTENCIA ════════════════════════════
      MEJORA-03: guarda y restaura estado en localStorage
   ═════════════════════════════════════════════ */
-  const PERSIST_KEYS = ["prompt","neg","ar","cw","ch","sampler","scheduler","steps","cfg","seed",
-    "count","loras_active","upscale","upscaler","upscaleX","upscaleDn",
-    "adetailer","adTab","adSlots","rp","rpMode","rpCalcMode","rpBase","rpSplitting","rpRatio",
-    "rpFlip","rpBasePrompt","rpCommonPrompt","rpComNegPrompt","rpTemplate",
-    "layerDiff","layerDiffMode","layerDiffWeight",
-    "model","i2iPrompt","i2iNeg","i2iDn","i2iResizeMode"];
+  const PERSIST_KEYS = ["prompt", "neg", "ar", "cw", "ch", "sampler", "scheduler", "steps", "cfg", "seed",
+    "count", "loras_active", "upscale", "upscaler", "upscaleX", "upscaleDn",
+    "adetailer", "adTab", "adSlots", "rp", "rpMode", "rpCalcMode", "rpBase", "rpSplitting", "rpRatio",
+    "rpFlip", "rpBasePrompt", "rpCommonPrompt", "rpComNegPrompt", "rpTemplate",
+    "layerDiff", "layerDiffMode", "layerDiffWeight",
+    "model", "i2iPrompt", "i2iNeg", "i2iDn", "i2iResizeMode"];
 
   function saveState() {
     try {
       const snap = {};
       PERSIST_KEYS.forEach(k => { snap[k] = S[k]; });
       localStorage.setItem("mui_state_v10", JSON.stringify(snap));
-    } catch(e) {}
+    } catch (e) { }
   }
 
   function loadState() {
@@ -223,25 +236,25 @@
 
       // ── Migración v26: sanear campos RP que podrían ser corruptos ──────────
       // Si rpCalcMode no es string, resetear al default
-      if (typeof S.rpCalcMode !== "string" || !["Matrix","Mask","Prompt"].includes(S.rpCalcMode)) {
+      if (typeof S.rpCalcMode !== "string" || !["Matrix", "Mask", "Prompt"].includes(S.rpCalcMode)) {
         S.rpCalcMode = "Matrix";
       }
       // Si rpMode no es "Attention" ni "Latent", resetear
-      if (typeof S.rpMode !== "string" || !["Attention","Latent"].includes(S.rpMode)) {
+      if (typeof S.rpMode !== "string" || !["Attention", "Latent"].includes(S.rpMode)) {
         S.rpMode = "Attention";
       }
       // Si rpSplitting no es string válido, resetear
-      if (typeof S.rpSplitting !== "string" || !["Columns","Rows","Random"].includes(S.rpSplitting)) {
+      if (typeof S.rpSplitting !== "string" || !["Columns", "Rows", "Random"].includes(S.rpSplitting)) {
         S.rpSplitting = "Columns";
       }
       // rpBase debe ser string o número, nunca bool
       if (typeof S.rpBase === "boolean") S.rpBase = "0.2";
       // rpFlip/rpBasePrompt/rpCommonPrompt/rpComNegPrompt deben ser bool
-      ["rpFlip","rpBasePrompt","rpCommonPrompt","rpComNegPrompt"].forEach(k => {
+      ["rpFlip", "rpBasePrompt", "rpCommonPrompt", "rpComNegPrompt"].forEach(k => {
         if (typeof S[k] !== "boolean") S[k] = false;
       });
       // ─────────────────────────────────────────────────────────────────────
-    } catch(e) {}
+    } catch (e) { }
   }
 
   // Auto-save en cada cambio de estado que importa
@@ -260,7 +273,7 @@
         const tx = db.transaction("store", "readwrite");
         tx.objectStore("store").put(S.history, "history");
       };
-    } catch(e) {}
+    } catch (e) { }
   }
 
   function loadHistoryDB() {
@@ -281,11 +294,11 @@
               if (j.status === "generating") { j.status = "error"; j.error = "Interrumpido (recarga o cierre)"; changed = true; }
             });
             if (changed) saveHistoryDB();
-            if (S.tab === "tasks") rerender();
+            if (S.tab === "tasks" || S.tab === "gallery") rerender();
           }
         };
       };
-    } catch(e) {}
+    } catch (e) { }
   }
 
   /* ══ PREVIEW URLS ════════════════════════════ */
@@ -295,24 +308,24 @@
     // FIX BUG-07: usar encodeURIComponent para rutas con espacios/especiales
     const base = fp.replace(/\.[^/.]+$/, "");
     const urls = [];
-    [".preview.png",".preview.jpg",".png",".jpg"].forEach(e =>
+    [".preview.png", ".preview.jpg", ".png", ".jpg"].forEach(e =>
       urls.push(BASE + "/sd_extra_networks/thumb?filename=" + encodeURIComponent(base + e))
     );
-    [".preview.png",".preview.jpg"].forEach(e =>
+    [".preview.png", ".preview.jpg"].forEach(e =>
       urls.push(BASE + "/file=" + encodeURIComponent(base + e))
     );
     return urls;
   }
-  window.muiImgErr = function(img, urlsJson) {
+  window.muiImgErr = function (img, urlsJson) {
     try {
       const urls = JSON.parse(urlsJson);
-      const cur  = urls.indexOf(img.src);
+      const cur = urls.indexOf(img.src);
       if (cur >= 0 && cur < urls.length - 1) { img.src = urls[cur + 1]; }
       else {
         const p = img.parentNode;
-        if (p) p.innerHTML = '<span style="font-size:20px">' + (p.dataset.fb||"🎨") + '</span>';
+        if (p) p.innerHTML = '<span style="font-size:20px">' + (p.dataset.fb || "🎨") + '</span>';
       }
-    } catch(e) {}
+    } catch (e) { }
   };
   function imgTag(urls, fb) {
     if (!urls || !urls.length) return '<span style="font-size:20px">' + fb + '</span>';
@@ -330,29 +343,154 @@
   });
 
   async function GET(p) {
-    try { const r = await fetch(BASE+p,{headers:H(),credentials:"include"}); return r.ok?r.json():null; }
+    try { const r = await fetch(BASE + p, { headers: H(), credentials: "include" }); return r.ok ? r.json() : null; }
     catch { return null; }
   }
-  async function POST(p, b, timeoutMs) {
+  // Solo se reintenta si el servidor AÚN NO procesó la petición.
+  // 500/504 se EXCLUYEN: el servidor pudo haber aceptado el job y ya está generando.
+  // Reintentar un POST a txt2img/img2img lanzaría UNA SEGUNDA generación.
+  const RETRIABLE = new Set([404, 429, 502, 503]);
+
+  async function POST(p, b, timeoutMs, _attempt) {
     const ms = timeoutMs || 12 * 60 * 1000;
+    const attempt = _attempt || 1;
+    const MAX_RETRIES = 2;
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), ms);
+    const HTTP_ERRORS = {
+      404: "HTTP 404 — La API del WebUI no respondió. Verifica que el servidor esté corriendo.",
+      422: "HTTP 422 — Parámetros inválidos. Comprueba el nombre del modelo, LoRA o extensión.",
+      500: "HTTP 500 — Error interno del servidor. Revisa la consola del WebUI.",
+      502: "HTTP 502 — Bad Gateway. El túnel (ngrok/gradio.live) perdió conexión.",
+      503: "HTTP 503 — WebUI no disponible. Espera unos segundos y reintenta.",
+      504: "HTTP 504 — El servidor tardó demasiado. Reduce los steps o desactiva Upscale/ADetailer múltiple.",
+    };
     try {
-      const r = await fetch(BASE+p, {
+      const r = await fetch(BASE + p, {
         method: "POST", headers: H(), credentials: "include",
         body: JSON.stringify(b), signal: ctrl.signal,
       });
       clearTimeout(tid);
       if (!r.ok) {
-        if (r.status === 504) throw new Error("HTTP 504 — El servidor tardó demasiado. Reduce los steps o desactiva Upscale/ADetailer múltiple.");
-        throw new Error("HTTP " + r.status);
+        // Reintentar automáticamente si el error es transitorio
+        if (RETRIABLE.has(r.status) && attempt <= MAX_RETRIES) {
+          const delay = attempt * 3000; // 3 s, 6 s
+          notify("⚠️ HTTP " + r.status + " — Reintentando en " + (delay / 1000) + " s… (" + attempt + "/" + MAX_RETRIES + ")");
+          await new Promise(res => setTimeout(res, delay));
+          return POST(p, b, timeoutMs, attempt + 1);
+        }
+        throw new Error(HTTP_ERRORS[r.status] || "HTTP " + r.status + " — Error del servidor.");
       }
       return r.json();
-    } catch(e) {
+    } catch (e) {
       clearTimeout(tid);
-      if (e.name === "AbortError") throw new Error("Timeout (12 min) — generación cancelada");
+      if (e.name === "AbortError") throw new Error("Timeout (" + Math.round(ms / 60000) + " min) — generación cancelada. Considera reducir steps o desactivar Upscale.");
+      // Red caída / tunnel caído → reintentar
+      if (!(e.message.startsWith("HTTP") || e.message.startsWith("Timeout")) && attempt <= MAX_RETRIES) {
+        const delay = attempt * 4000;
+        notify("🔌 Sin conexión — Reintentando en " + (delay / 1000) + " s… (" + attempt + "/" + MAX_RETRIES + ")");
+        await new Promise(res => setTimeout(res, delay));
+        return POST(p, b, timeoutMs, attempt + 1);
+      }
       throw e;
     }
+  }
+
+  // ── Pre-flight: comprueba que el WebUI responde antes de generar ──────────
+  async function pingServer() {
+    try {
+      const r = await fetch(BASE + "/sdapi/v1/progress", {
+        headers: H(), credentials: "include",
+        signal: AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined,
+      });
+      return r.ok || r.status === 200;
+    } catch { return false; }
+  }
+
+  // ── Modo recuperación tras 504/502/timeout ────────────────────────────────
+  // El túnel (ngrok/gradio.live) cierra la conexión HTTP antes de que el WebUI
+  // termine de generar. El job sigue vivo en el servidor.
+  // Solución: seguir sondeando /sdapi/v1/progress hasta que el servidor quede
+  // idle, luego informar al usuario sin marcar el job como error fatal.
+  async function recoverGeneration(jobId) {
+    notify("🔄 Túnel caído — el servidor puede seguir generando, monitoreando…");
+    const job = S.history.find(j => j.id === jobId);
+    let seenProgress = false;
+    let lastImg = null;
+    let polls = 0;
+    const MAX_POLLS = 160; // ~4 min a 1.5 s/sondeo
+
+    return new Promise(resolve => {
+      const ri = setInterval(async () => {
+        polls++;
+        const p = await GET("/sdapi/v1/progress?skip_current_image=false");
+
+        if (p) {
+          const pct = Math.round((p.progress || 0) * 100);
+          if (pct > 0) {
+            // ¡El servidor sigue generando! Actualizar UI normalmente
+            seenProgress = true;
+            S.progress = pct;
+            S.eta = Math.round(p.eta_relative || 0);
+            if (p.current_image) {
+              lastImg = "data:image/png;base64," + p.current_image;
+              S.liveImg = lastImg;
+            }
+            if (job) { job.progress = pct; job.eta = S.eta; job.status = "generating"; }
+            updateTaskCard(jobId); updateGenBtn();
+          } else if (seenProgress || polls > 8) {
+            // Progress volvió a 0 → terminó en el servidor pero el túnel ya cortó
+            clearInterval(ri);
+            if (job) {
+              if (lastImg) {
+                job.images = [lastImg];
+                job.status = "done";
+                job.progress = 100;
+                job.error = null;
+                notify("✅ Imagen recuperada — aparece en la Galería");
+              } else {
+                job.status = "error";
+                job.error = "⚠️ La imagen se generó en el servidor pero el túnel (ngrok/gradio.live) cortó la conexión. Ábrela desde la galería del WebUI.";
+                notify("ℹ️ Imagen en el servidor — ábrela desde la galería del WebUI", true);
+              }
+            }
+            S.liveImg = null; S.busy = false; S.progress = 0;
+            updateGenBtn(); updateTaskCard(jobId); saveHistoryDB();
+            resolve(); return;
+          }
+        } else if (polls > 10) {
+          // El servidor tampoco responde al sondeo → error real
+          clearInterval(ri);
+          if (job) {
+            job.status = "error";
+            job.error = "HTTP 504 — El servidor tardó demasiado. Reduce los steps o desactiva Upscale/ADetailer.";
+          }
+          S.liveImg = null; S.busy = false; S.progress = 0;
+          notify("❌ El servidor no respondió. Reduce steps o desactiva Upscale/ADetailer.", true);
+          updateGenBtn(); updateTaskCard(jobId); saveHistoryDB();
+          resolve(); return;
+        }
+
+        if (polls >= MAX_POLLS) {
+          clearInterval(ri);
+          if (job) {
+            if (lastImg) {
+              job.images = [lastImg];
+              job.status = "done";
+              job.progress = 100;
+              job.error = null;
+              notify("✅ Imagen recuperada (timeout alcanzado) — visible en Galería");
+            } else {
+              job.status = "error";
+              job.error = "Timeout de recuperación — el servidor tardó demasiado. Revisa la galería del WebUI.";
+            }
+          }
+          S.liveImg = null; S.busy = false; S.progress = 0;
+          updateGenBtn(); updateTaskCard(jobId); saveHistoryDB();
+          resolve();
+        }
+      }, 1500);
+    });
   }
 
   /* ══ TRIGGER WORDS ═══════════════════════════
@@ -384,7 +522,7 @@
           const tw = parseTW(d);
           if (tw) { S._civitai[key] = tw; return tw; }
         }
-      } catch(e) {}
+      } catch (e) { }
     }
 
     // 2. Forge /sd_extra_networks/metadata
@@ -401,10 +539,10 @@
             try {
               const tw = parseTW(JSON.parse(txt));
               if (tw) { S._civitai[key] = tw; return tw; }
-            } catch(e) {}
+            } catch (e) { }
           }
         }
-      } catch(e) {}
+      } catch (e) { }
     }
 
     if (!base) { S._civitai[key] = ""; return ""; }
@@ -418,7 +556,7 @@
         const tw = parseTW(d);
         if (tw) { S._civitai[key] = tw; return tw; }
       }
-    } catch(e) {}
+    } catch (e) { }
 
     // 4. .txt sidecar
     try {
@@ -428,7 +566,7 @@
         const t = (await r.text()).trim();
         if (t && t.length < 500) { S._civitai[key] = t; return t; }
       }
-    } catch(e) {}
+    } catch (e) { }
 
     S._civitai[key] = "";
     return "";
@@ -451,12 +589,12 @@
     // Helper: classify a version/name string
     function classifyStr(s) {
       const v = String(s || "").toLowerCase();
-      if (v.includes("reforge") || v.includes("re-forge")) return { name:"reForge", icon:"⚡" };
-      if (v.includes("forge"))                              return { name:"Forge",   icon:"🔥" };
-      if (v.includes("vladmandic") || v.includes("sdnext")) return { name:"SD.Next", icon:"🟣" };
-      if (v.includes("invokeai"))                           return { name:"InvokeAI",icon:"🎨" };
-      if (v.includes("comfy"))                              return { name:"ComfyUI", icon:"🧩" };
-      if (v.includes("automatic") || v.includes("a1111") || v.includes("webui")) return { name:"A1111", icon:"🤖" };
+      if (v.includes("reforge") || v.includes("re-forge")) return { name: "reForge", icon: "⚡" };
+      if (v.includes("forge")) return { name: "Forge", icon: "🔥" };
+      if (v.includes("vladmandic") || v.includes("sdnext")) return { name: "SD.Next", icon: "🟣" };
+      if (v.includes("invokeai")) return { name: "InvokeAI", icon: "🎨" };
+      if (v.includes("comfy")) return { name: "ComfyUI", icon: "🧩" };
+      if (v.includes("automatic") || v.includes("a1111") || v.includes("webui")) return { name: "A1111", icon: "🤖" };
       return null;
     }
 
@@ -477,7 +615,7 @@
         // If still empty but the object exists → it's likely A1111 (it responds but field names vary)
         if (!name && Object.keys(si).length > 0) { name = "A1111"; icon = "🤖"; }
       }
-    } catch(e) {}
+    } catch (e) { }
 
     // ── 2. /internal/ping ────────────────────────────────────────────────────
     // Forge/reForge return { "ping": "pong", "backend": "reforge" } or similar
@@ -490,7 +628,7 @@
           if (cls) { name = cls.name; icon = cls.icon; }
           else if (ping) { name = "A1111"; icon = "🤖"; } // responds → it's A1111-family
         }
-      } catch(e) {}
+      } catch (e) { }
     }
 
     // ── 3. /sdapi/v1/cmd-flags ───────────────────────────────────────────────
@@ -504,7 +642,7 @@
           if (cls) { name = cls.name; icon = cls.icon; }
           else { name = "A1111"; icon = "🤖"; } // has sdapi → A1111-family
         }
-      } catch(e) {}
+      } catch (e) { }
     }
 
     // ── 4. DOM & page title ──────────────────────────────────────────────────
@@ -518,7 +656,7 @@
         ].join(" ");
         const cls = classifyStr(sources);
         if (cls) { name = cls.name; icon = cls.icon; }
-      } catch(e) {}
+      } catch (e) { }
     }
 
     // ── 5. Structural DOM fingerprinting ────────────────────────────────────
@@ -548,27 +686,27 @@
       GET("/controlnet/model_list"),
       GET("/controlnet/module_list"),
     ]);
-    if (md?.length) S.models = md.map(m => ({ t:m.title||m.name, n:m.model_name||m.title, path:m.filename||"", hash:m.hash||"", preview:previewUrls(m.filename||"") }));
+    if (md?.length) S.models = md.map(m => ({ t: m.title || m.name, n: m.model_name || m.title, path: m.filename || "", hash: m.hash || "", preview: previewUrls(m.filename || "") }));
     // FIX BUG-06: solo sobreescribe si no hay modelo guardado o si el modelo guardado no está en la lista
     const modelInList = S.models.some(m => m.t === S.model);
     if (opts?.sd_model_checkpoint && !modelInList) S.model = opts.sd_model_checkpoint;
     else if (!S.model && S.models.length) S.model = S.models[0].t;
-    if (ld) S.loras = ld.map(l => ({ n:l.name, a:l.alias||l.name, path:l.path||"", preview:previewUrls(l.path||""), triggers:null }));
-    if (sd?.length) S.samplers = sd.map(s=>s.name);
-    else S.samplers = ["Euler a","Euler","DPM++ 2M","DPM++ 2M Karras","DPM++ 2M SDE","DPM++ 2M SDE Karras","DPM++ SDE Karras","DPM++ 3M SDE Karras","DPM++ 3M SDE Exponential","DPM2","DPM2 Karras","DDIM","DDPM","PLMS","UniPC","LMS","LMS Karras","Heun","Restart","TCD","LCM"];
-    if (schd?.length) S.schedulers = schd.map(s=>s.name||s.label||s);
-    else S.schedulers = ["Automatic","Karras","Exponential","SGM Uniform","Simple","Normal","DDIM Uniform"];
-    if (ud?.length) S.upscalers = ud.map(u=>u.name).filter(n=>n&&n!=="None");
-    else S.upscalers = ["Lanczos","Nearest","ESRGAN_4x","R-ESRGAN 4x+","R-ESRGAN 4x+ Anime6B","SwinIR 4x","LDSR","ScuNET GAN"];
+    if (ld) S.loras = ld.map(l => ({ n: l.name, a: l.alias || l.name, path: l.path || "", preview: previewUrls(l.path || ""), triggers: null }));
+    if (sd?.length) S.samplers = sd.map(s => s.name);
+    else S.samplers = ["Euler a", "Euler", "DPM++ 2M", "DPM++ 2M Karras", "DPM++ 2M SDE", "DPM++ 2M SDE Karras", "DPM++ SDE Karras", "DPM++ 3M SDE Karras", "DPM++ 3M SDE Exponential", "DPM2", "DPM2 Karras", "DDIM", "DDPM", "PLMS", "UniPC", "LMS", "LMS Karras", "Heun", "Restart", "TCD", "LCM"];
+    if (schd?.length) S.schedulers = schd.map(s => s.name || s.label || s);
+    else S.schedulers = ["Automatic", "Karras", "Exponential", "SGM Uniform", "Simple", "Normal", "DDIM Uniform"];
+    if (ud?.length) S.upscalers = ud.map(u => u.name).filter(n => n && n !== "None");
+    else S.upscalers = ["Lanczos", "Nearest", "ESRGAN_4x", "R-ESRGAN 4x+", "R-ESRGAN 4x+ Anime6B", "SwinIR 4x", "LDSR", "ScuNET GAN"];
     if (cnm?.model_list?.length) S.cnModels = ["none", ...cnm.model_list];
     else S.cnModels = ["none"];
     if (cnp?.module_list?.length) S.cnPreprocessors = ["none", ...cnp.module_list];
-    else S.cnPreprocessors = ["none","canny","depth","depth_midas","depth_zoe","hed","lineart","lineart_anime",
-      "mediapipe_face","mlsd","normal_map","openpose","openpose_face","openpose_faceonly",
-      "openpose_full","openpose_hand","scribble_hed","scribble_pidinet","seg_ofade20k",
-      "shuffle","softedge_hed","softedge_pidinet","tile_colorfix","tile_resample",
-      "ip-adapter","ip-adapter_face_id","invert"];
-    notify("✅ "+S.models.length+" modelos · "+S.loras.length+" LoRAs · "+S.cnModels.length+" CN");
+    else S.cnPreprocessors = ["none", "canny", "depth", "depth_midas", "depth_zoe", "hed", "lineart", "lineart_anime",
+      "mediapipe_face", "mlsd", "normal_map", "openpose", "openpose_face", "openpose_faceonly",
+      "openpose_full", "openpose_hand", "scribble_hed", "scribble_pidinet", "seg_ofade20k",
+      "shuffle", "softedge_hed", "softedge_pidinet", "tile_colorfix", "tile_resample",
+      "ip-adapter", "ip-adapter_face_id", "invert"];
+    notify("✅ " + S.models.length + " modelos · " + S.loras.length + " LoRAs · " + S.cnModels.length + " CN");
     S._dataLoaded = true;
     S._dataTs = Date.now();
     probeCNResizeMode();
@@ -586,14 +724,26 @@
         S._cnResizeModeInt = v < 1.1;
         return;
       }
-    } catch(e) {}
+    } catch (e) { }
     S._cnResizeModeInt = false;
+  }
+
+  // Calcula timeout dinámico para el POST de generación
+  function genTimeout() {
+    // Base: 12 min. +8 min por Upscale. +5 min por cada slot ADetailer activo.
+    let ms = 12 * 60 * 1000;
+    if (S.upscale) ms += 8 * 60 * 1000;
+    if (S.adetailer) {
+      const activeSlots = S.adSlots.filter(s => s.enabled).length;
+      ms += activeSlots * 5 * 60 * 1000;
+    }
+    return ms;
   }
 
   /* ══ GENERATE — txt2img ══════════════════════ */
   async function generate() {
     if (S.busy) return;
-    if (!S.prompt.trim()) { notify(T.noPrompt,true); return; }
+    if (!S.prompt.trim()) { notify(T.noPrompt, true); return; }
     // Block if CN is enabled+has model+has image but preprocessor not yet run
     // reForge CANNOT run preprocessors internally from API — must be pre-processed
     const cnNeedsPrep = S.cnUnits.filter(u =>
@@ -611,57 +761,66 @@
       notify("⚠️ ControlNet activo pero sin imagen — sube una imagen al CN o desactívalo", true);
       return;
     }
-    const ar=AR[S.ar];
+    const ar = AR[S.ar];
     // FIX BUG-09 / MEJORA-09: validar y snap a múltiplo de 8
-    let w = snap8(ar.w||S.cw);
-    let h = snap8(ar.h||S.ch);
+    let w = snap8(ar.w || S.cw);
+    let h = snap8(ar.h || S.ch);
     if (S.ar === "custom" && (S.cw % 8 !== 0 || S.ch % 8 !== 0)) {
       notify(T.resWarn);
       S.cw = w; S.ch = h;
     }
     let prompt = S.prompt;
-    S.loras_active.forEach(l => { if (l.n) prompt += ", <lora:"+l.n+":"+l.w+">"; });
-    const count=parseInt(S.count)||1;
-    const jobId=uid();
-    const activeLoraSummary = S.loras_active.map(l=>l.n+"("+l.w+")").join(", ") || "—";
-    const params={
-      prompt, neg:S.neg, w, h, sampler:S.sampler, scheduler:S.scheduler,
-      steps:S.steps, cfg:S.cfg, seed:S.seed||"−1", count,
-      model:S.model, loras:activeLoraSummary,
-      upscale:S.upscale, upscaler:S.upscaler, upscaleX:S.upscaleX,
-      adetailer:S.adetailer, adSlots: S.adSlots.filter(s=>s.enabled).map(s=>s.model),
-      rp:S.rp, rpMode:S.rpMode, rpSplitting:S.rpSplitting, ts:nowTs(),
-      layerDiff:S.layerDiff,
+    S.loras_active.forEach(l => { if (l.n) prompt += ", <lora:" + l.n + ":" + l.w + ">"; });
+    const count = parseInt(S.count) || 1;
+    const jobId = uid();
+    const activeLoraSummary = S.loras_active.map(l => l.n + "(" + l.w + ")").join(", ") || "—";
+    const params = {
+      prompt, neg: S.neg, w, h, sampler: S.sampler, scheduler: S.scheduler,
+      steps: S.steps, cfg: S.cfg, seed: S.seed || "−1", count,
+      model: S.model, loras: activeLoraSummary,
+      upscale: S.upscale, upscaler: S.upscaler, upscaleX: S.upscaleX,
+      adetailer: S.adetailer, adSlots: S.adSlots.filter(s => s.enabled).map(s => s.model),
+      rp: S.rp, rpMode: S.rpMode, rpSplitting: S.rpSplitting, ts: nowTs(),
+      layerDiff: S.layerDiff,
     };
-    S.busy=true; S.progress=0; S.eta=0; S.liveImg=null;
-    S.history.unshift({id:jobId,params,images:[],status:"generating",progress:0});
+    // ── Pre-flight: verificar que el servidor responde ────────────────────
+    notify("🔍 Verificando servidor…");
+    const serverOk = await pingServer();
+    if (!serverOk) {
+      notify("❌ El servidor WebUI no responde. Verifica la conexión o el túnel.", true);
+      return;
+    }
+
+    S.busy = true; S.progress = 0; S.eta = 0; S.liveImg = null;
+    S.history.unshift({ id: jobId, params, images: [], status: "generating", progress: 0 });
     saveHistoryDB();
     updateGenBtn(); mui.tab("tasks");
 
-    if ((S.upscale || (S.adetailer && S.adSlots.filter(s=>s.enabled).length > 1))
-        && /gradio\.live|ngrok/i.test(window.location.hostname)) {
+    if ((S.upscale || (S.adetailer && S.adSlots.filter(s => s.enabled).length > 1))
+      && /gradio\.live|ngrok/i.test(window.location.hostname)) {
       notify(T.slowWarning);
     }
 
-    S._pt=setInterval(async()=>{
-      const p=await GET("/sdapi/v1/progress?skip_current_image=false");
-      if(!p) return;
-      const pct=Math.round((p.progress||0)*100);
-      S.progress=pct; S.eta=Math.round(p.eta_relative||0);
-      if(p.current_image) S.liveImg="data:image/png;base64,"+p.current_image;
-      const job=S.history.find(j=>j.id===jobId);
-      if(job){job.progress=pct;job.eta=S.eta;}
+    S._pt = setInterval(async () => {
+      const p = await GET("/sdapi/v1/progress?skip_current_image=false");
+      if (!p) return;
+      const pct = Math.round((p.progress || 0) * 100);
+      S.progress = pct; S.eta = Math.round(p.eta_relative || 0);
+      if (p.current_image) S.liveImg = "data:image/png;base64," + p.current_image;
+      const job = S.history.find(j => j.id === jobId);
+      if (job) { job.progress = pct; job.eta = S.eta; }
       updateTaskCard(jobId); updateGenBtn();
-    },900);
+    }, 900);
 
-    const payload={
-      prompt, negative_prompt:S.neg, width:w, height:h,
-      sampler_name:S.sampler,
-      scheduler:S.scheduler!=="Automatic"?S.scheduler:undefined,
-      steps:S.steps, cfg_scale:S.cfg,
-      seed:S.seed?parseInt(S.seed):-1,
-      n_iter:1, batch_size:count,
-      alwayson_scripts:{},
+    const payload = {
+      prompt, negative_prompt: S.neg, width: w, height: h,
+      sampler_name: S.sampler,
+      scheduler: S.scheduler !== "Automatic" ? S.scheduler : undefined,
+      steps: S.steps, cfg_scale: S.cfg,
+      seed: S.seed ? parseInt(S.seed) : -1,
+      n_iter: 1, batch_size: count,
+      save_images: true,   // ← guardar en outputs/txt2img-images en el servidor
+      alwayson_scripts: {},
     };
 
     // ADetailer
@@ -712,22 +871,22 @@
     if (S.rp) {
       // Convertir "Columns"/"Rows" a los valores internos que espera la API
       const rpSplitAPI = S.rpSplitting === "Rows" ? "Horizontal"
-                       : S.rpSplitting === "Columns" ? "Vertical"
-                       : (S.rpSplitting || "Vertical");
+        : S.rpSplitting === "Columns" ? "Vertical"
+          : (S.rpSplitting || "Vertical");
       payload.alwayson_scripts["Regional Prompter"] = {
         args: [
           true,                           // [0]  active
           false,                          // [1]  debug
-          S.rpCalcMode  || "Matrix",      // [2]  calcmode:   "Matrix" / "Mask" / "Prompt"
+          S.rpCalcMode || "Matrix",      // [2]  calcmode:   "Matrix" / "Mask" / "Prompt"
           rpSplitAPI,                     // [3]  splitmode:  "Vertical" / "Horizontal" / "Random"
           "Mask",                         // [4]  sub_mask    (fijo)
           "Prompt",                       // [5]  sub_prompt  (fijo)
-          S.rpRatio     || "1,1",         // [6]  aratios:    Divide Ratio
+          S.rpRatio || "1,1",         // [6]  aratios:    Divide Ratio
           String(S.rpBase ?? "0.2"),      // [7]  bratios:    Base Ratio
-          S.rpFlip      || false,         // [8]  flipflop:   Flip "," and ";"
-          S.rpBasePrompt   || false,      // [9]  usebase:    Use base prompt
+          S.rpFlip || false,         // [8]  flipflop:   Flip "," and ";"
+          S.rpBasePrompt || false,      // [9]  usebase:    Use base prompt
           S.rpCommonPrompt || false,      // [10] usecom:     Use common prompt
-          S.rpMode      || "Attention",   // [11] dmode:      "Attention" / "Latent"
+          S.rpMode || "Attention",   // [11] dmode:      "Attention" / "Latent"
           false,                          // [12] turbo       (Use LoHa or other)
           "0",                            // [13] lstop
           "0",                            // [14] lstop_hr
@@ -739,8 +898,8 @@
 
     // Upscale (hires.fix)
     if (S.upscale) {
-      payload.enable_hr=true; payload.hr_scale=S.upscaleX;
-      payload.hr_upscaler=S.upscaler; payload.denoising_strength=S.upscaleDn;
+      payload.enable_hr = true; payload.hr_scale = S.upscaleX;
+      payload.hr_upscaler = S.upscaler; payload.denoising_strength = S.upscaleDn;
     }
 
     // Layer Diffusion — FIX BUG-03: ahora incluido en el payload
@@ -779,7 +938,7 @@
       payload.alwayson_scripts["ControlNet"] = {
         args: S.cnUnits.map(u => {
           const hasModel = u.enabled && u.model && u.model !== "none";
-          const srcB64   = u.preprocessedB64 || u.imageB64 || null;
+          const srcB64 = u.preprocessedB64 || u.imageB64 || null;
           const hasImage = !!srcB64;
 
           // Without BOTH model+image → disabled stub (prevents KeyError: 0)
@@ -789,65 +948,73 @@
           }
 
           const imgData = srcB64.includes(",") ? srcB64.split(",")[1] : srcB64;
-          const cmInt   = u.mode === "Prefer Prompt" ? 1 : u.mode === "Prefer ControlNet" ? 2 : 0;
+          const cmInt = u.mode === "Prefer Prompt" ? 1 : u.mode === "Prefer ControlNet" ? 2 : 0;
           // threshold must be int ≥ 0; use safe defaults
-          const thA     = (u.threshA != null && u.threshA >= 0) ? Math.round(u.threshA) : 64;
-          const thB     = (u.threshB != null && u.threshB >= 0) ? Math.round(u.threshB) : 64;
+          const thA = (u.threshA != null && u.threshA >= 0) ? Math.round(u.threshA) : 64;
+          const thB = (u.threshB != null && u.threshB >= 0) ? Math.round(u.threshB) : 64;
 
           return {
-            enabled:          true,
-            image:            imgData,
+            enabled: true,
+            image: imgData,
             // NO `module` field — omitting it prevents get_preprocessor() crash in reForge.
             // The image is already pre-processed by "▶ Correr Preprocesador" if user ran it.
             // model: exact name from /controlnet/model_list
-            model:            u.model,
-            weight:           u.weight,
-            guidance_start:   u.startStep,
-            guidance_end:     u.endStep,
+            model: u.model,
+            weight: u.weight,
+            guidance_start: u.startStep,
+            guidance_end: u.endStep,
             // control_mode as integer — universally accepted by all reForge/A1111 versions
-            control_mode:     cmInt,
+            control_mode: cmInt,
             // resize_mode as integer — Forge built-in uses ints (0/1/2)
-            resize_mode:      u.resize === "Just Resize" ? 0
-                            : u.resize === "Resize and Fill" ? 2
-                            : 1,
-            pixel_perfect:    u.pixelPerfect,
-            low_vram:         u.lowVram,
-            processor_res:    u.detectRes || 512,
+            resize_mode: u.resize === "Just Resize" ? 0
+              : u.resize === "Resize and Fill" ? 2
+                : 1,
+            pixel_perfect: u.pixelPerfect,
+            low_vram: u.lowVram,
+            processor_res: u.detectRes || 512,
             image_resolution: u.detectRes || 512,
-            threshold_a:      thA,
-            threshold_b:      thB,
+            threshold_a: thA,
+            threshold_b: thB,
           };
         })
       };
     }
 
+    const timeout = genTimeout();
+    let _recovered = false;
     try {
-      const data = await POST("/sdapi/v1/txt2img", payload);
+      const data = await POST("/sdapi/v1/txt2img", payload, timeout);
       clearInterval(S._pt);
-      const imgs=(data.images||[]).map(i=>"data:image/png;base64,"+i);
-      const job=S.history.find(j=>j.id===jobId);
-      if(job){
-        job.images=imgs; job.status="done"; job.progress=100;
-        // Extract the real seed from data.info (JSON string from the API)
+      const imgs = (data.images || []).map(i => "data:image/png;base64," + i);
+      const job = S.history.find(j => j.id === jobId);
+      if (job) {
+        job.images = imgs; job.status = "done"; job.progress = 100;
         try {
-          const info = typeof data.info === "string" ? JSON.parse(data.info) : (data.info||{});
+          const info = typeof data.info === "string" ? JSON.parse(data.info) : (data.info || {});
           const realSeed = info.seed ?? (info.all_seeds && info.all_seeds[0]);
-          if (realSeed !== undefined && realSeed !== -1) {
-            job.params.seed = String(realSeed);
-          }
-        } catch(e2) {}
+          if (realSeed !== undefined && realSeed !== -1) job.params.seed = String(realSeed);
+        } catch (e2) { }
       }
-      S.liveImg=null;
-    } catch(e) {
+      S.liveImg = null;
+    } catch (e) {
       clearInterval(S._pt);
-      const job=S.history.find(j=>j.id===jobId);
-      if(job){job.status="error";job.error=e.message;}
-      S.liveImg=null; notify("❌ "+e.message,true);
+      // 504/502/timeout = el túnel cayó pero el servidor puede seguir generando
+      // NO marcar error inmediatamente: entrar en modo recuperación
+      const isGateway = /504|502|Timeout|timeout/i.test(e.message) || e.name === "AbortError";
+      if (isGateway) {
+        _recovered = true;
+        await recoverGeneration(jobId);
+      } else {
+        const job = S.history.find(j => j.id === jobId);
+        if (job) { job.status = "error"; job.error = e.message; }
+        S.liveImg = null; notify("❌ " + e.message, true);
+      }
     }
-    S.busy=false; S.progress=0;
-    updateGenBtn(); updateTaskCard(jobId);
-    scheduleSave();
-    saveHistoryDB();
+    if (!_recovered) {
+      S.busy = false; S.progress = 0;
+      updateGenBtn(); updateTaskCard(jobId);
+      scheduleSave(); saveHistoryDB();
+    }
   }
 
   /* ══ GENERATE — img2img ══════════════════════
@@ -857,6 +1024,13 @@
     if (S.busy) return;
     if (!S.i2iImageB64) { notify("⚠️ Sube una imagen primero", true); return; }
     if (!S.i2iPrompt.trim()) { notify("⚠️ Escribe un prompt para la modificación", true); return; }
+    // ── Pre-flight ────────────────────────────────────────────────────────
+    notify("🔍 Verificando servidor…");
+    const serverOkI2I = await pingServer();
+    if (!serverOkI2I) {
+      notify("❌ El servidor WebUI no responde. Verifica la conexión o el túnel.", true);
+      return;
+    }
     const ar = AR[S.ar];
     const w = snap8(ar.w || S.cw);
     const h = snap8(ar.h || S.ch);
@@ -864,31 +1038,31 @@
     const count = parseInt(S.count) || 1;
     const jobId = uid();
     const params = {
-      prompt: S.i2iPrompt, neg: S.i2iNeg||S.neg, w, h,
+      prompt: S.i2iPrompt, neg: S.i2iNeg || S.neg, w, h,
       sampler: S.sampler, scheduler: S.scheduler,
-      steps: S.steps, cfg: S.cfg, seed: S.seed||"−1", count,
+      steps: S.steps, cfg: S.cfg, seed: S.seed || "−1", count,
       model: S.model, loras: "—",
       mode: "img2img", dn: S.i2iDn, ts: nowTs(),
       adetailer: S.adetailer,
-      adSlots: S.adetailer ? S.adSlots.filter(s=>s.enabled).map(s=>s.model) : [],
+      adSlots: S.adetailer ? S.adSlots.filter(s => s.enabled).map(s => s.model) : [],
     };
     S.busy = true; S.progress = 0; S.eta = 0; S.liveImg = null;
-    S.history.unshift({id:jobId,params,images:[],status:"generating",progress:0});
+    S.history.unshift({ id: jobId, params, images: [], status: "generating", progress: 0 });
     saveHistoryDB();
     updateGenBtn(); mui.tab("tasks");
 
-    S._pt = setInterval(async()=>{
+    S._pt = setInterval(async () => {
       const p = await GET("/sdapi/v1/progress?skip_current_image=false");
       if (!p) return;
-      const pct = Math.round((p.progress||0)*100);
-      S.progress = pct; S.eta = Math.round(p.eta_relative||0);
-      if (p.current_image) S.liveImg = "data:image/png;base64,"+p.current_image;
-      const job = S.history.find(j=>j.id===jobId);
+      const pct = Math.round((p.progress || 0) * 100);
+      S.progress = pct; S.eta = Math.round(p.eta_relative || 0);
+      if (p.current_image) S.liveImg = "data:image/png;base64," + p.current_image;
+      const job = S.history.find(j => j.id === jobId);
       if (job) { job.progress = pct; job.eta = S.eta; }
       updateTaskCard(jobId); updateGenBtn();
     }, 900);
 
-    const resizeModeMap = { "Just Resize":0, "Crop and Resize":1, "Fill":2, "Latent Upscale":3 };
+    const resizeModeMap = { "Just Resize": 0, "Crop and Resize": 1, "Fill": 2, "Latent Upscale": 3 };
     const payload = {
       init_images: [imgB64],
       prompt: S.i2iPrompt,
@@ -901,6 +1075,7 @@
       n_iter: 1, batch_size: count,
       denoising_strength: S.i2iDn,
       resize_mode: resizeModeMap[S.i2iResizeMode] ?? 0,
+      save_images: true,   // ← guardar en outputs/img2img-images en el servidor
       alwayson_scripts: {},
     };
 
@@ -932,13 +1107,13 @@
       payload.alwayson_scripts["ControlNet"] = {
         args: S.cnUnits.map(u => {
           const hasModel = u.enabled && u.model && u.model !== "none";
-          const srcB64   = u.preprocessedB64 || u.imageB64 || null;
+          const srcB64 = u.preprocessedB64 || u.imageB64 || null;
           const hasImage = !!srcB64;
           if (!hasModel || !hasImage) return { enabled: false, image: null };
           const imgData = srcB64.includes(",") ? srcB64.split(",")[1] : srcB64;
-          const cmInt   = u.mode === "Prefer Prompt" ? 1 : u.mode === "Prefer ControlNet" ? 2 : 0;
-          const thA     = (u.threshA != null && u.threshA >= 0) ? Math.round(u.threshA) : 64;
-          const thB     = (u.threshB != null && u.threshB >= 0) ? Math.round(u.threshB) : 64;
+          const cmInt = u.mode === "Prefer Prompt" ? 1 : u.mode === "Prefer ControlNet" ? 2 : 0;
+          const thA = (u.threshA != null && u.threshA >= 0) ? Math.round(u.threshA) : 64;
+          const thB = (u.threshB != null && u.threshB >= 0) ? Math.round(u.threshB) : 64;
           return {
             enabled: true, image: imgData, model: u.model,
             weight: u.weight, guidance_start: u.startStep, guidance_end: u.endStep,
@@ -952,32 +1127,39 @@
       };
     }
 
+    const timeoutI2I = genTimeout();
+    let _recoveredI2I = false;
     try {
-      const data = await POST("/sdapi/v1/img2img", payload);
+      const data = await POST("/sdapi/v1/img2img", payload, timeoutI2I);
       clearInterval(S._pt);
-      const imgs = (data.images||[]).map(i=>"data:image/png;base64,"+i);
-      const job = S.history.find(j=>j.id===jobId);
+      const imgs = (data.images || []).map(i => "data:image/png;base64," + i);
+      const job = S.history.find(j => j.id === jobId);
       if (job) {
         job.images = imgs; job.status = "done"; job.progress = 100;
         try {
-          const info = typeof data.info === "string" ? JSON.parse(data.info) : (data.info||{});
+          const info = typeof data.info === "string" ? JSON.parse(data.info) : (data.info || {});
           const realSeed = info.seed ?? (info.all_seeds && info.all_seeds[0]);
-          if (realSeed !== undefined && realSeed !== -1) {
-            job.params.seed = String(realSeed);
-          }
-        } catch(e2) {}
+          if (realSeed !== undefined && realSeed !== -1) job.params.seed = String(realSeed);
+        } catch (e2) { }
       }
       S.liveImg = null;
-    } catch(e) {
+    } catch (e) {
       clearInterval(S._pt);
-      const job = S.history.find(j=>j.id===jobId);
-      if (job) { job.status = "error"; job.error = e.message; }
-      S.liveImg = null; notify("❌ "+e.message, true);
+      const isGatewayI2I = /504|502|Timeout|timeout/i.test(e.message) || e.name === "AbortError";
+      if (isGatewayI2I) {
+        _recoveredI2I = true;
+        await recoverGeneration(jobId);
+      } else {
+        const job = S.history.find(j => j.id === jobId);
+        if (job) { job.status = "error"; job.error = e.message; }
+        S.liveImg = null; notify("❌ " + e.message, true);
+      }
     }
-    S.busy = false; S.progress = 0;
-    updateGenBtn(); updateTaskCard(jobId);
-    scheduleSave();
-    saveHistoryDB();
+    if (!_recoveredI2I) {
+      S.busy = false; S.progress = 0;
+      updateGenBtn(); updateTaskCard(jobId);
+      scheduleSave(); saveHistoryDB();
+    }
   }
 
   /* ══ STOP GENERATION ════════════════════════
@@ -990,9 +1172,9 @@
       S.busy = false; S.progress = 0;
       updateGenBtn();
       notify(T.stopped);
-      const gen = S.history.find(j=>j.status==="generating");
+      const gen = S.history.find(j => j.status === "generating");
       if (gen) { gen.status = "error"; gen.error = "Detenido por el usuario"; updateTaskCard(gen.id); saveHistoryDB(); }
-    } catch(e) {
+    } catch (e) {
       notify(T.stopError, true);
     }
   }
@@ -1269,7 +1451,50 @@
   .civicomfy-tabs { overflow-x: auto; scrollbar-width: none; }
   .civicomfy-tabs::-webkit-scrollbar { display: none; }
 }
+
+/* ── Image Info Tab ──────────────── */
+.IIT-BADGE{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;margin-bottom:10px;}
+.IIT-BADGE.ok{background:#06b6d422;border:1px solid #06b6d444;color:#22d3ee;}
+.IIT-BADGE.warn{background:#f59e0b22;border:1px solid #f59e0b44;color:#fbbf24;}
+.IIT-SEND{display:flex;gap:8px;margin-top:12px;}
+.IIT-SEND-BTN{flex:1;border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;padding:11px 8px;cursor:pointer;touch-action:manipulation;transition:opacity .15s;}
+.IIT-SEND-BTN:active{opacity:.8;}
+.IIT-SEND-T2I{background:linear-gradient(135deg,#7c3aed,#06b6d4);}
+.IIT-SEND-I2I{background:linear-gradient(135deg,#06b6d4,#0ea5e9);}
+.IIT-INFO-BOX{background:#0a0a18;border:1px solid #1e1e34;border-radius:9px;padding:10px 12px;margin-bottom:8px;}
+.IIT-INFO-H{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.IIT-INFO-T{font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;}
+.IIT-INFO-T.pos{color:#06b6d4;}.IIT-INFO-T.neg{color:#ef4444;}.IIT-INFO-T.par{color:#a78bfa;}
+.IIT-INFO-C{font-size:12px;color:#d1d5db;line-height:1.55;word-wrap:break-word;max-height:90px;overflow-y:auto;}
+.IIT-CPY{background:#1e1e2e;border:1px solid #2d2d45;color:#9ca3af;border-radius:6px;padding:4px 9px;font-size:11px;cursor:pointer;touch-action:manipulation;}
+.IIT-PARAMS{display:flex;flex-direction:column;gap:2px;}
+.IIT-PR{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;border-bottom:1px solid #13132a;}
+.IIT-PR:last-child{border-bottom:none;}
+.IIT-PK{font-size:10px;color:#6b7280;font-weight:500;flex-shrink:0;}
+.IIT-PV{font-size:11px;color:#e5e7eb;font-weight:500;text-align:right;max-width:65%;word-break:break-all;}
+
+/* ── TagComplete popup en overlay ── */
+#tac_results_popup,.autocompleteResults,.tac-popup{z-index:2147483900 !important;font-family:'Sora',sans-serif !important;font-size:13px !important;max-height:200px !important;overflow-y:auto !important;}
+
+/* ── Gallery ── */
+.GAL-GRID{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;}
+.GAL-ITEM{position:relative;border-radius:10px;overflow:hidden;cursor:pointer;aspect-ratio:1/1;background:#13132a;border:1px solid #1e1e34;transition:transform .15s,border-color .15s;}
+.GAL-ITEM:active{transform:scale(.97);}
+.GAL-ITEM:hover{border-color:#7c3aed66;}
+.GAL-IMG{width:100%;height:100%;object-fit:cover;display:block;}
+.GAL-OVR{position:absolute;bottom:0;left:0;right:0;padding:18px 8px 7px;background:linear-gradient(to top,rgba(0,0,0,.75) 0%,transparent 100%);opacity:0;transition:opacity .2s;}
+.GAL-ITEM:hover .GAL-OVR{opacity:1;}
+.GAL-META{font-size:10px;color:#e5e7eb;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.GAL-SEED{font-size:9px;color:#9ca3af;margin-top:1px;}
+
+/* ── Gallery Lightbox extra ── */
+.LB-ACT{display:flex;gap:7px;margin-top:10px;}
+.LB-ACT-BTN{flex:1;border-radius:9px;border:none;font-size:13px;font-weight:700;padding:10px 6px;cursor:pointer;touch-action:manipulation;transition:opacity .15s;color:#fff;}
+.LB-ACT-BTN:active{opacity:.8;}
+.LB-ACT-RMX{background:linear-gradient(135deg,#7c3aed,#a855f7);}
+.LB-ACT-CPY{background:linear-gradient(135deg,#1e1e2e,#2d2d45);border:1px solid #3d3d5e;color:#9ca3af;}
 `;
+
 
   /* ══ HTML ════════════════════════════════════ */
   const HTML = `
@@ -1287,10 +1512,12 @@
     </div>
   </div>
   <div class="TABS">
-    <button class="TAB on" id="t-txt2img" onclick="mui.tab('txt2img')">Text2Img</button>
-    <button class="TAB"    id="t-img2img" onclick="mui.tab('img2img')">Img2Img</button>
-    <button class="TAB"    id="t-tasks"   onclick="mui.tab('tasks')">Tasks</button>
-    <button class="TAB"    id="t-extra"   onclick="mui.tab('extra')">Extra</button>
+    <button class="TAB on" id="t-txt2img"   onclick="mui.tab('txt2img')">Text2Img</button>
+    <button class="TAB"    id="t-img2img"   onclick="mui.tab('img2img')">Img2Img</button>
+    <button class="TAB"    id="t-tasks"     onclick="mui.tab('tasks')">Tasks</button>
+    <button class="TAB"    id="t-gallery"   onclick="mui.tab('gallery')">🖼️ Galería</button>
+    <button class="TAB"    id="t-imageinfo" onclick="mui.tab('imageinfo')">🔍 Info</button>
+    <button class="TAB"    id="t-extra"     onclick="mui.tab('extra')">Extra</button>
   </div>
   <div class="BODY" id="muiBody"></div>
   <div class="BAR">
@@ -1317,6 +1544,10 @@
     </div>
     <div class="LB-INFO">
       <div id="muiLBParams"></div>
+      <div id="muiLBActions" class="LB-ACT" style="display:none">
+        <button class="LB-ACT-BTN LB-ACT-RMX" id="muiLBRemix" onclick="mui.lbRemix()">🔀 Remezclar</button>
+        <button class="LB-ACT-BTN LB-ACT-CPY" id="muiLBCopy" onclick="mui.lbCopyParams()">📋 Copiar params</button>
+      </div>
       <div class="LB-BAR">
         <button class="LB-BTN dl" onclick="mui.lbDl()">💾 Guardar</button>
         <button class="LB-BTN" onclick="mui.lbClose()">✕ Cerrar</button>
@@ -1359,15 +1590,18 @@
 <input type="file" id="cnFileInp0" class="CN-FILEINP" accept="image/*" data-unit="0" onchange="mui.cnImgLoad(this)">
 <input type="file" id="cnFileInp1" class="CN-FILEINP" accept="image/*" data-unit="1" onchange="mui.cnImgLoad(this)">
 <input type="file" id="cnFileInp2" class="CN-FILEINP" accept="image/*" data-unit="2" onchange="mui.cnImgLoad(this)">
-<input type="file" id="i2iFileInp" class="CN-FILEINP" accept="image/*" onchange="mui.i2iImgLoad(this)">`;
+<input type="file" id="i2iFileInp"      class="CN-FILEINP" accept="image/*" onchange="mui.i2iImgLoad(this)">
+<input type="file" id="imgInfoFileInp" class="CN-FILEINP" accept="image/*" onchange="mui.imgInfoLoad(this)">`;
 
   /* ══ RENDER ══════════════════════════════════ */
   function rerender() {
-    const el=$("muiBody"); if(!el) return;
-    if      (S.tab==="txt2img") el.innerHTML=rTxt();
-    else if (S.tab==="img2img") el.innerHTML=rI2I();
-    else if (S.tab==="tasks")   el.innerHTML=rTasks();
-    else                        el.innerHTML=rExtra();
+    const el = $("muiBody"); if (!el) return;
+    if      (S.tab === "txt2img")   el.innerHTML = rTxt();
+    else if (S.tab === "img2img")   el.innerHTML = rI2I();
+    else if (S.tab === "tasks")     el.innerHTML = rTasks();
+    else if (S.tab === "gallery")   el.innerHTML = rGallery();
+    else if (S.tab === "imageinfo") el.innerHTML = rImageInfo();
+    else                            el.innerHTML = rExtra();
   }
 
   /* ── SECCIÓN: Prompt ─────────────────────────────── */
@@ -1393,20 +1627,20 @@
 
   /* ── SECCIÓN: Modelos ───────────────────────────── */
   function rModelsSection() {
-    const cm=S.models.find(m=>m.t===S.model)||null;
-    const ml=cm?cm.t.replace(/\.[^/.]+$/,"").slice(0,32):(S.models.length?"Toca para elegir":"Cargando…");
-    const mdlThumb=cm&&cm.preview.length?imgTag(cm.preview,"🎨"):'<span style="font-size:20px">🎨</span>';
+    const cm = S.models.find(m => m.t === S.model) || null;
+    const ml = cm ? cm.t.replace(/\.[^/.]+$/, "").slice(0, 32) : (S.models.length ? "Toca para elegir" : "Cargando…");
+    const mdlThumb = cm && cm.preview.length ? imgTag(cm.preview, "🎨") : '<span style="font-size:20px">🎨</span>';
     // MEJORA-08: clase loading si el modelo está cambiando
     const loadingCls = S._modelChanging ? " loading" : "";
     return `
 <div class="C">
   <div class="CT">Modelos</div>
   <div class="MB">Checkpoint</div>
-  <div class="MR ${cm?"sel":""}${loadingCls}" onclick="mui.om()">
+  <div class="MR ${cm ? "sel" : ""}${loadingCls}" onclick="mui.om()">
     <div class="MTH" data-fb="🎨">${mdlThumb}</div>
     <div class="MINFO">
       <div class="MNM">${esc(ml)}</div>
-      ${S._modelChanging?'<div style="font-size:10px;color:#f59e0b">⏳ Cargando…</div>':""}
+      ${S._modelChanging ? '<div style="font-size:10px;color:#f59e0b">⏳ Cargando…</div>' : ""}
     </div>
     <span class="MARR">›</span>
   </div>
@@ -1425,23 +1659,23 @@
 <div class="C">
   <div class="CT">Aspect Ratio</div>
   <div class="AR">
-    ${Object.entries(AR).map(([k,v])=>`
-    <button class="ARB ${S.ar===k?"on":""}" onclick="mui.ar('${k}')">
+    ${Object.entries(AR).map(([k, v]) => `
+    <button class="ARB ${S.ar === k ? "on" : ""}" onclick="mui.ar('${k}')">
       <span class="AI">${v.icon}</span><div class="AL">${v.lbl}</div><div class="AS">${v.sub}</div>
     </button>`).join("")}
   </div>
-  ${S.ar==="custom"?`
+  ${S.ar === "custom" ? `
   <div class="R2">
     <div class="FG"><div class="CL">Width (múlt. de 8)</div><input class="INP" type="number" value="${S.cw}" min="64" max="2048" step="8" oninput="S.cw=snap8(this.value);scheduleSave()"></div>
     <div class="FG"><div class="CL">Height (múlt. de 8)</div><input class="INP" type="number" value="${S.ch}" min="64" max="2048" step="8" oninput="S.ch=snap8(this.value);scheduleSave()"></div>
-  </div>`:""}
+  </div>`: ""}
 </div>`;
   }
 
   /* ── SECCIÓN: Sampler ───────────────────────────── */
   function rSamplerSection() {
-    const so=S.samplers.map(s=>'<option value="'+esc(s)+'"'+(s===S.sampler?" selected":"")+">"+esc(s)+"</option>").join("");
-    const sch=S.schedulers.map(s=>'<option value="'+esc(s)+'"'+(s===S.scheduler?" selected":"")+">"+esc(s)+"</option>").join("");
+    const so = S.samplers.map(s => '<option value="' + esc(s) + '"' + (s === S.sampler ? " selected" : "") + ">" + esc(s) + "</option>").join("");
+    const sch = S.schedulers.map(s => '<option value="' + esc(s) + '"' + (s === S.scheduler ? " selected" : "") + ">" + esc(s) + "</option>").join("");
     return `
 <div class="C">
   <div class="R2">
@@ -1450,12 +1684,12 @@
   </div>
   <div class="CL">Sampling Steps</div>
   <div class="SLR">
-    <input type="range" class="RNG" id="stR" min="1" max="150" step="1" value="${S.steps}" style="--p:${S.steps/150*100}%;flex:1" oninput="mui.st(this.value)">
+    <input type="range" class="RNG" id="stR" min="1" max="150" step="1" value="${S.steps}" style="--p:${S.steps / 150 * 100}%;flex:1" oninput="mui.st(this.value)">
     <input class="SLI" type="number" id="stI" min="1" max="150" value="${S.steps}" onchange="mui.st(this.value)">
   </div>
   <div class="CL">CFG Scale</div>
   <div class="SLR">
-    <input type="range" class="RNG" id="cfR" min="0" max="30" step="0.5" value="${S.cfg}" style="--p:${S.cfg/30*100}%;flex:1" oninput="mui.cf(this.value)">
+    <input type="range" class="RNG" id="cfR" min="0" max="30" step="0.5" value="${S.cfg}" style="--p:${S.cfg / 30 * 100}%;flex:1" oninput="mui.cf(this.value)">
     <input class="SLI" type="number" id="cfI" min="0" max="30" step="0.5" value="${S.cfg}" onchange="mui.cf(this.value)">
   </div>
   <div class="CL" style="margin-top:1px">Seed</div>
@@ -1465,16 +1699,16 @@
 
   /* ── SECCIÓN: Opciones ──────────────────────────── */
   function rOpcionesSection() {
-    const uo=S.upscalers.map(u=>'<option value="'+esc(u)+'"'+(u===S.upscaler?" selected":"")+">"+esc(u)+"</option>").join("");
-    const ldModes=["Background Only","Foreground Only","Combined","Foreground to Background"];
+    const uo = S.upscalers.map(u => '<option value="' + esc(u) + '"' + (u === S.upscaler ? " selected" : "") + ">" + esc(u) + "</option>").join("");
+    const ldModes = ["Background Only", "Foreground Only", "Combined", "Foreground to Background"];
     return `
 <div class="C">
   <div class="CT">Opciones</div>
   <div class="TR">
     <span class="TL">🔍 Upscale (Hires.fix)</span>
-    <label class="TOG"><input type="checkbox" ${S.upscale?"checked":""} onchange="S.upscale=this.checked;mui.tp('cfgUp',this.checked)"><span class="TOGS"></span></label>
+    <label class="TOG"><input type="checkbox" ${S.upscale ? "checked" : ""} onchange="S.upscale=this.checked;mui.tp('cfgUp',this.checked)"><span class="TOGS"></span></label>
   </div>
-  <div id="cfgUp" class="SC" style="display:${S.upscale?"block":"none"}">
+  <div id="cfgUp" class="SC" style="display:${S.upscale ? "block" : "none"}">
     <div class="SCL">⚙️ Upscale Config</div>
     <select class="SEL" style="margin-bottom:7px" onchange="S.upscaler=this.value">${uo}</select>
     <div class="R2">
@@ -1484,34 +1718,34 @@
   </div>
   <div class="TR">
     <span class="TL">👤 ADetailer</span>
-    <label class="TOG"><input type="checkbox" ${S.adetailer?"checked":""} onchange="S.adetailer=this.checked;mui.tp('cfgAD',this.checked)"><span class="TOGS"></span></label>
+    <label class="TOG"><input type="checkbox" ${S.adetailer ? "checked" : ""} onchange="S.adetailer=this.checked;mui.tp('cfgAD',this.checked)"><span class="TOGS"></span></label>
   </div>
-  <div id="cfgAD" class="SC" style="display:${S.adetailer?"block":"none"}">${rADetailer()}</div>
+  <div id="cfgAD" class="SC" style="display:${S.adetailer ? "block" : "none"}">${rADetailer()}</div>
   <div class="TR">
     <span class="TL">🗺️ Regional Prompter</span>
-    <label class="TOG"><input type="checkbox" ${S.rp?"checked":""} onchange="S.rp=this.checked;mui.tp('cfgRP',this.checked)"><span class="TOGS"></span></label>
+    <label class="TOG"><input type="checkbox" ${S.rp ? "checked" : ""} onchange="S.rp=this.checked;mui.tp('cfgRP',this.checked)"><span class="TOGS"></span></label>
   </div>
-  <div id="cfgRP" class="SC" style="display:${S.rp?"block":"none"}">${rRegionalPrompter()}</div>
+  <div id="cfgRP" class="SC" style="display:${S.rp ? "block" : "none"}">${rRegionalPrompter()}</div>
   <div class="TR">
     <span class="TL">🕹️ ControlNet</span>
-    <label class="TOG"><input type="checkbox" id="cnToggle" ${S.cnUnits.some(u=>u.enabled)?"checked":""} onchange="mui.cnToggle(this.checked)"><span class="TOGS"></span></label>
+    <label class="TOG"><input type="checkbox" id="cnToggle" ${S.cnUnits.some(u => u.enabled) ? "checked" : ""} onchange="mui.cnToggle(this.checked)"><span class="TOGS"></span></label>
   </div>
-  <div id="cfgCN" class="SC" style="display:${S.cnUnits.some(u=>u.enabled)?"block":"none"}">${rControlNet()}</div>
+  <div id="cfgCN" class="SC" style="display:${S.cnUnits.some(u => u.enabled) ? "block" : "none"}">${rControlNet()}</div>
   <!-- FIX BUG-03: Layer Diffusion con modo y peso configurables -->
   <div class="TR">
     <span class="TL">🌊 Layer Diffusion</span>
-    <label class="TOG"><input type="checkbox" ${S.layerDiff?"checked":""} onchange="S.layerDiff=this.checked;mui.tp('cfgLD',this.checked)"><span class="TOGS"></span></label>
+    <label class="TOG"><input type="checkbox" ${S.layerDiff ? "checked" : ""} onchange="S.layerDiff=this.checked;mui.tp('cfgLD',this.checked)"><span class="TOGS"></span></label>
   </div>
-  <div id="cfgLD" class="SC" style="display:${S.layerDiff?"block":"none"}">
+  <div id="cfgLD" class="SC" style="display:${S.layerDiff ? "block" : "none"}">
     <div class="SCL">⚙️ Layer Diffusion Config</div>
     <div class="CL" style="margin-bottom:4px">Modo</div>
     <select class="SEL" style="margin-bottom:8px" onchange="S.layerDiffMode=this.value">
-      ${ldModes.map(m=>`<option value="${esc(m)}" ${S.layerDiffMode===m?"selected":""}>${esc(m)}</option>`).join("")}
+      ${ldModes.map(m => `<option value="${esc(m)}" ${S.layerDiffMode === m ? "selected" : ""}>${esc(m)}</option>`).join("")}
     </select>
-    <div class="CL">Weight: <strong id="ldWLbl">${(S.layerDiffWeight||1).toFixed(2)}</strong></div>
+    <div class="CL">Weight: <strong id="ldWLbl">${(S.layerDiffWeight || 1).toFixed(2)}</strong></div>
     <div class="SLR">
       <input type="range" class="RNG" min="0" max="1" step="0.05"
-        value="${S.layerDiffWeight||1}" style="--p:${(S.layerDiffWeight||1)*100}%;flex:1"
+        value="${S.layerDiffWeight || 1}" style="--p:${(S.layerDiffWeight || 1) * 100}%;flex:1"
         oninput="S.layerDiffWeight=+this.value;this.style.setProperty('--p',(this.value*100)+'%');var l=$('ldWLbl');if(l)l.textContent=(+this.value).toFixed(2)">
     </div>
   </div>
@@ -1529,15 +1763,15 @@
       return '<div style="color:#4b5563;font-size:12px;padding:6px 0 3px">Ningún LoRA seleccionado</div>';
     }
     return S.loras_active.map((entry, idx) => {
-      const lo = S.loras.find(l=>l.n===entry.n)||null;
-      const label = lo ? lo.a.slice(0,22) : entry.n.slice(0,22);
-      const th = lo && lo.preview.length ? imgTag(lo.preview,"✨") : '<span style="font-size:16px">✨</span>';
-      const twc = lo ? (S._civitai[lo.n]||"") : "";
+      const lo = S.loras.find(l => l.n === entry.n) || null;
+      const label = lo ? lo.a.slice(0, 22) : entry.n.slice(0, 22);
+      const th = lo && lo.preview.length ? imgTag(lo.preview, "✨") : '<span style="font-size:16px">✨</span>';
+      const twc = lo ? (S._civitai[lo.n] || "") : "";
       return `<div class="LR">
         <div class="LR-thumb" data-fb="✨" onclick="mui.changeLora(${idx})">${th}</div>
         <div style="flex:1;overflow:hidden;cursor:pointer" onclick="mui.changeLora(${idx})">
           <div class="LR-name">${esc(label)}</div>
-          ${twc?`<div class="TWP">🏷️ ${esc(twc.slice(0,24))}${twc.length>24?"…":""}</div>`:""}
+          ${twc ? `<div class="TWP">🏷️ ${esc(twc.slice(0, 24))}${twc.length > 24 ? "…" : ""}</div>` : ""}
         </div>
         <input class="LR-w" type="number" min="0" max="2" step="0.05" value="${entry.w}"
           oninput="S.loras_active[${idx}].w=parseFloat(this.value)||1;scheduleSave()">
@@ -1548,19 +1782,19 @@
 
   /* ── ADetailer ────────────────────────────────────── */
   function rADetailer() {
-    const tabNames = ["1st","2nd","3rd","4th"];
+    const tabNames = ["1st", "2nd", "3rd", "4th"];
     const slot = S.adSlots[S.adTab];
-    const ao = S.adModels.map(m=>'<option value="'+esc(m)+'"'+(m===slot.model?" selected":"")+">"+esc(m)+"</option>").join("");
+    const ao = S.adModels.map(m => '<option value="' + esc(m) + '"' + (m === slot.model ? " selected" : "") + ">" + esc(m) + "</option>").join("");
     return `
 <div class="SCL">⚙️ ADetailer — ${tabNames[S.adTab]} Detector</div>
 <div class="AD-TABS">
-  ${tabNames.map((n,i)=>`
-    <button class="AD-TAB ${S.adTab===i?"on":""}" onclick="mui.adTab(${i})">
-      ${n}${S.adSlots[i].enabled?'<span class="on-dot"></span>':""}
+  ${tabNames.map((n, i) => `
+    <button class="AD-TAB ${S.adTab === i ? "on" : ""}" onclick="mui.adTab(${i})">
+      ${n}${S.adSlots[i].enabled ? '<span class="on-dot"></span>' : ""}
     </button>`).join("")}
 </div>
 <div class="RP-CK" style="margin-bottom:9px">
-  <input type="checkbox" id="adEn${S.adTab}" ${slot.enabled?"checked":""}
+  <input type="checkbox" id="adEn${S.adTab}" ${slot.enabled ? "checked" : ""}
     onchange="S.adSlots[${S.adTab}].enabled=this.checked">
   <label for="adEn${S.adTab}">Habilitar ${tabNames[S.adTab]} detector</label>
 </div>
@@ -1569,11 +1803,11 @@
 <div class="CL" style="margin-bottom:4px">Prompt ADetailer (vacío = usar prompt principal)</div>
 <textarea class="NTA" style="min-height:40px;background:#13132a;border:1px solid #1e1e34;border-radius:7px;padding:7px 10px;"
   placeholder="ADetailer prompt…"
-  oninput="S.adSlots[${S.adTab}].prompt=this.value">${esc(slot.prompt||"")}</textarea>
+  oninput="S.adSlots[${S.adTab}].prompt=this.value">${esc(slot.prompt || "")}</textarea>
 <div class="CL" style="margin:5px 0 4px">Negativo ADetailer</div>
 <textarea class="NTA" style="min-height:34px;background:#13132a;border:1px solid #1e1e34;border-radius:7px;padding:7px 10px;"
   placeholder="Negativo ADetailer…"
-  oninput="S.adSlots[${S.adTab}].neg=this.value">${esc(slot.neg||"")}</textarea>
+  oninput="S.adSlots[${S.adTab}].neg=this.value">${esc(slot.neg || "")}</textarea>
 <div class="R2" style="margin-top:8px">
   <div class="FG"><div class="CL">Confidence</div>
     <input class="INP" type="number" value="${slot.conf}" min="0.1" max="1" step="0.05" oninput="S.adSlots[${S.adTab}].conf=+this.value">
@@ -1586,44 +1820,44 @@
 
   /* ── ControlNet ───────────────────────────────────── */
   const CN_PASSTHROUGH = new Set([
-    "none","reference_only","reference_adain","reference_adain+attn",
-    "ip-adapter_clip_sdxl","ip-adapter_clip_sdxl_plus_vith",
-    "ip-adapter_clip_sd15","ip-adapter_face_id","ip-adapter_face_id_plus",
-    "ip-adapter_pulid","revision_clipvision","revision_ignore_prompt",
-    "inpaint_only","inpaint_only+lama",
+    "none", "reference_only", "reference_adain", "reference_adain+attn",
+    "ip-adapter_clip_sdxl", "ip-adapter_clip_sdxl_plus_vith",
+    "ip-adapter_clip_sd15", "ip-adapter_face_id", "ip-adapter_face_id_plus",
+    "ip-adapter_pulid", "revision_clipvision", "revision_ignore_prompt",
+    "inpaint_only", "inpaint_only+lama",
   ]);
   const CN_HAS_THRESH = new Set([
-    "canny","mlsd","scribble_pidinet","softedge_pidinet","softedge_pidisafe",
-    "depth_leres","depth_leres++","normal_bae",
+    "canny", "mlsd", "scribble_pidinet", "softedge_pidinet", "softedge_pidisafe",
+    "depth_leres", "depth_leres++", "normal_bae",
   ]);
   const CN_THRESH_DEFAULTS = {
-    canny:   { a:100, b:200, lA:"Low Threshold", lB:"High Threshold" },
-    mlsd:    { a:0.1, b:0.1, lA:"Value Threshold", lB:"Distance Threshold" },
-    depth_leres:    { a:0, b:0, lA:"Remove Near %", lB:"Remove Background %" },
-    "depth_leres++":{ a:0, b:0, lA:"Remove Near %", lB:"Remove Background %" },
-    normal_bae:     { a:1, b:1, lA:"", lB:"" },
+    canny: { a: 100, b: 200, lA: "Low Threshold", lB: "High Threshold" },
+    mlsd: { a: 0.1, b: 0.1, lA: "Value Threshold", lB: "Distance Threshold" },
+    depth_leres: { a: 0, b: 0, lA: "Remove Near %", lB: "Remove Background %" },
+    "depth_leres++": { a: 0, b: 0, lA: "Remove Near %", lB: "Remove Background %" },
+    normal_bae: { a: 1, b: 1, lA: "", lB: "" },
   };
 
   function rControlNet() {
     const u = S.cnUnits[S.cnTab];
     const unitNames = ["Unit 0", "Unit 1", "Unit 2"];
     const ppOpts = (S.cnPreprocessors.length > 1 ? S.cnPreprocessors : [
-      "none","canny","depth_midas","depth_zoe","depth_leres","hed","lineart_coarse",
-      "lineart_realistic","lineart_anime","mlsd","normal_bae","openpose","openpose_face",
-      "openpose_faceonly","openpose_full","openpose_hand","dwpose","dw_openpose_full",
-      "scribble_hed","scribble_pidinet","softedge_hed","softedge_pidinet","softedge_pidisafe",
-      "segmentation","shuffle","tile_resample","tile_colorfix","tile_colorfix+sharp",
-      "invert","inpaint_only","inpaint_only+lama","reference_only",
-      "ip-adapter_clip_sdxl","ip-adapter_clip_sd15",
+      "none", "canny", "depth_midas", "depth_zoe", "depth_leres", "hed", "lineart_coarse",
+      "lineart_realistic", "lineart_anime", "mlsd", "normal_bae", "openpose", "openpose_face",
+      "openpose_faceonly", "openpose_full", "openpose_hand", "dwpose", "dw_openpose_full",
+      "scribble_hed", "scribble_pidinet", "softedge_hed", "softedge_pidinet", "softedge_pidisafe",
+      "segmentation", "shuffle", "tile_resample", "tile_colorfix", "tile_colorfix+sharp",
+      "invert", "inpaint_only", "inpaint_only+lama", "reference_only",
+      "ip-adapter_clip_sdxl", "ip-adapter_clip_sd15",
     ]).map(p =>
-      '<option value="'+esc(p)+'"'+(p===u.preprocessor?" selected":"")+">"+esc(p)+"</option>"
+      '<option value="' + esc(p) + '"' + (p === u.preprocessor ? " selected" : "") + ">" + esc(p) + "</option>"
     ).join("");
-    const mdlLabel = u.model && u.model !== "none" ? u.model.slice(0,30) : "Ninguno";
-    const modes   = ["Balanced","Prefer Prompt","Prefer ControlNet"];
-    const resizes = ["Just Resize","Crop and Resize","Resize and Fill"];
+    const mdlLabel = u.model && u.model !== "none" ? u.model.slice(0, 30) : "Ninguno";
+    const modes = ["Balanced", "Prefer Prompt", "Prefer ControlNet"];
+    const resizes = ["Just Resize", "Crop and Resize", "Resize and Fill"];
     const needsPrep = !CN_PASSTHROUGH.has(u.preprocessor) && u.preprocessor !== "none";
     const hasThresh = CN_HAS_THRESH.has(u.preprocessor);
-    const td = CN_THRESH_DEFAULTS[u.preprocessor] || { a:-1, b:-1, lA:"Threshold A", lB:"Threshold B" };
+    const td = CN_THRESH_DEFAULTS[u.preprocessor] || { a: -1, b: -1, lA: "Threshold A", lB: "Threshold B" };
     const dropContent = u.imageB64
       ? `<img src="${u.imageB64}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:9px">
          <div class="CN-DROP-OVR" onclick="event.preventDefault();event.stopPropagation();
@@ -1649,11 +1883,11 @@
   <div class="CL" style="margin-bottom:7px">Parámetros del preprocessor</div>
   <div class="R2">
     <div class="FG"><div class="CL">${td.lA || "Threshold A"}</div>
-      <input class="INP" type="number" step="1" value="${u.threshA>=0?u.threshA:td.a}"
+      <input class="INP" type="number" step="1" value="${u.threshA >= 0 ? u.threshA : td.a}"
         oninput="S.cnUnits[${S.cnTab}].threshA=+this.value">
     </div>
     <div class="FG"><div class="CL">${td.lB || "Threshold B"}</div>
-      <input class="INP" type="number" step="1" value="${u.threshB>=0?u.threshB:td.b}"
+      <input class="INP" type="number" step="1" value="${u.threshB >= 0 ? u.threshB : td.b}"
         oninput="S.cnUnits[${S.cnTab}].threshB=+this.value">
     </div>
   </div>
@@ -1664,14 +1898,14 @@
 
     const runBtn = (u.imageB64 && needsPrep) ? `
 <button class="CN-RUN-BTN" id="cnRunBtn${S.cnTab}"
-  ${u.detecting?"disabled":""}
-  style="${!u.preprocessedB64?"background:linear-gradient(135deg,#7c3aed88,#06b6d488);border-color:#7c3aed;":""}"
+  ${u.detecting ? "disabled" : ""}
+  style="${!u.preprocessedB64 ? "background:linear-gradient(135deg,#7c3aed88,#06b6d488);border-color:#7c3aed;" : ""}"
   onclick="mui.cnRunPrep(${S.cnTab})">
   ${u.detecting
-    ? '<div class="SPIN"></div> Procesando…'
-    : (u.preprocessedB64
-        ? '🔄 Re-ejecutar · '+esc(u.preprocessor)
-        : '▶ REQUERIDO: Correr Preprocesador · '+esc(u.preprocessor))}
+        ? '<div class="SPIN"></div> Procesando…'
+        : (u.preprocessedB64
+          ? '🔄 Re-ejecutar · ' + esc(u.preprocessor)
+          : '▶ REQUERIDO: Correr Preprocesador · ' + esc(u.preprocessor))}
 </button>
 ${showPrepWarning ? `<div style="background:#f59e0b22;border:1px solid #f59e0b55;border-radius:8px;padding:8px 10px;font-size:11px;color:#fbbf24;margin-bottom:9px">
   ⚠️ Debes correr el preprocesador antes de generar. reForge no puede aplicarlo internamente desde la API.
@@ -1679,23 +1913,23 @@ ${showPrepWarning ? `<div style="background:#f59e0b22;border:1px solid #f59e0b55
     return `
 <div class="SCL">🕹️ ControlNet</div>
 <div class="CN-TABS">
-  ${unitNames.map((n,i)=>`
-    <button class="CN-TAB ${S.cnTab===i?"on":""}" onclick="mui.cnTabSwitch(${i})">
-      ${n}${S.cnUnits[i].enabled?'<span class="en-dot"></span>':""}
+  ${unitNames.map((n, i) => `
+    <button class="CN-TAB ${S.cnTab === i ? "on" : ""}" onclick="mui.cnTabSwitch(${i})">
+      ${n}${S.cnUnits[i].enabled ? '<span class="en-dot"></span>' : ""}
     </button>`).join("")}
 </div>
 <div class="RP-CK" style="margin-bottom:8px">
-  <input type="checkbox" id="cnEn${S.cnTab}" ${u.enabled?"checked":""}
+  <input type="checkbox" id="cnEn${S.cnTab}" ${u.enabled ? "checked" : ""}
     onchange="S.cnUnits[${S.cnTab}].enabled=this.checked;document.getElementById('cnToggle').checked=S.cnUnits.some(x=>x.enabled)">
   <label for="cnEn${S.cnTab}" style="font-size:13px;color:#e5e7eb;font-weight:500">Habilitar Unit ${S.cnTab}</label>
 </div>
 <div style="display:flex;gap:10px;margin-bottom:10px">
   <label class="RP-CK" style="margin-bottom:0">
-    <input type="checkbox" ${u.pixelPerfect?"checked":""} onchange="S.cnUnits[${S.cnTab}].pixelPerfect=this.checked">
+    <input type="checkbox" ${u.pixelPerfect ? "checked" : ""} onchange="S.cnUnits[${S.cnTab}].pixelPerfect=this.checked">
     <span style="font-size:11px;color:#9ca3af">Pixel Perfect</span>
   </label>
   <label class="RP-CK" style="margin-bottom:0">
-    <input type="checkbox" ${u.lowVram?"checked":""} onchange="S.cnUnits[${S.cnTab}].lowVram=this.checked">
+    <input type="checkbox" ${u.lowVram ? "checked" : ""} onchange="S.cnUnits[${S.cnTab}].lowVram=this.checked">
     <span style="font-size:11px;color:#9ca3af">Low VRAM</span>
   </label>
 </div>
@@ -1705,22 +1939,22 @@ ${showPrepWarning ? `<div style="background:#f59e0b22;border:1px solid #f59e0b55
 ${threshSection}
 <div class="CL" style="margin-bottom:4px">Detect Resolution</div>
 <input class="INP" type="number" step="64" min="128" max="2048"
-  value="${u.detectRes||512}" style="margin-bottom:9px"
+  value="${u.detectRes || 512}" style="margin-bottom:9px"
   oninput="S.cnUnits[${S.cnTab}].detectRes=+this.value||512">
-<label for="cnFileInp${S.cnTab}" class="CN-DROP ${u.imageB64?"has-img":""}">
+<label for="cnFileInp${S.cnTab}" class="CN-DROP ${u.imageB64 ? "has-img" : ""}">
   ${dropContent}
 </label>
 ${runBtn}
 ${prevSection}
 <div class="CL" style="margin-bottom:4px">Modelo CN</div>
-<div class="MR ${u.model&&u.model!=="none"?"sel":""}" onclick="mui.cnOpenMdl()" style="margin-bottom:9px;min-height:auto;padding:8px 11px">
+<div class="MR ${u.model && u.model !== "none" ? "sel" : ""}" onclick="mui.cnOpenMdl()" style="margin-bottom:9px;min-height:auto;padding:8px 11px">
   <div style="flex:1;font-size:12px;font-weight:600;color:#e5e7eb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(mdlLabel)}</div>
   <span style="color:#4b5563;font-size:13px">›</span>
 </div>
 <div class="CL">Control Weight: <strong id="cnWLbl${S.cnTab}">${u.weight.toFixed(2)}</strong></div>
 <div class="SLR">
   <input type="range" class="RNG" min="0" max="2" step="0.05"
-    value="${u.weight}" style="--p:${u.weight/2*100}%;flex:1"
+    value="${u.weight}" style="--p:${u.weight / 2 * 100}%;flex:1"
     oninput="S.cnUnits[${S.cnTab}].weight=+this.value;this.style.setProperty('--p',(this.value/2*100)+'%');var l=$('cnWLbl${S.cnTab}');if(l)l.textContent=(+this.value).toFixed(2)">
 </div>
 <div class="R2">
@@ -1735,35 +1969,35 @@ ${prevSection}
 </div>
 <div class="CL" style="margin-bottom:5px">Control Mode</div>
 <div class="CN-MODEBTS">
-  ${modes.map(m=>`<button class="CN-PPB ${u.mode===m?"on":""}" onclick="S.cnUnits[${S.cnTab}].mode='${m}';mui.cnRefresh()">${m}</button>`).join("")}
+  ${modes.map(m => `<button class="CN-PPB ${u.mode === m ? "on" : ""}" onclick="S.cnUnits[${S.cnTab}].mode='${m}';mui.cnRefresh()">${m}</button>`).join("")}
 </div>
 <div class="CL" style="margin-bottom:5px">Resize Mode</div>
 <div class="CN-RZBTS">
-  ${resizes.map(r=>`<button class="CN-PPB ${u.resize===r?"on":""}" onclick="S.cnUnits[${S.cnTab}].resize='${r}';mui.cnRefresh()">${r}</button>`).join("")}
+  ${resizes.map(r => `<button class="CN-PPB ${u.resize === r ? "on" : ""}" onclick="S.cnUnits[${S.cnTab}].resize='${r}';mui.cnRefresh()">${r}</button>`).join("")}
 </div>`;
   }
 
   /* ── Regional Prompter ────────────────────────────── */
   function rRegionalPrompter() {
-    const modes    = ["Attention","Latent"];
-    const calcModes = ["Matrix","Mask","Prompt"];
-    const splits   = ["Columns","Rows","Random"];
+    const modes = ["Attention", "Latent"];
+    const calcModes = ["Matrix", "Mask", "Prompt"];
+    const splits = ["Columns", "Rows", "Random"];
     return `
 <div class="SCL">⚙️ Regional Prompter</div>
 
 <div class="CL" style="margin-bottom:4px">Generation Mode</div>
 <div class="RP-BTNS">
-  ${modes.map(m=>`<button class="RP-BTN ${S.rpMode===m?"on":""}" onclick="S.rpMode='${m}';mui.tp('cfgRP',true)">${m}</button>`).join("")}
+  ${modes.map(m => `<button class="RP-BTN ${S.rpMode === m ? "on" : ""}" onclick="S.rpMode='${m}';mui.tp('cfgRP',true)">${m}</button>`).join("")}
 </div>
 
 <div class="CL" style="margin-bottom:4px">Calc Mode</div>
 <div class="RP-BTNS">
-  ${calcModes.map(c=>`<button class="RP-BTN ${(S.rpCalcMode||'Matrix')===c?"on":""}" onclick="S.rpCalcMode='${c}';mui.tp('cfgRP',true)">${c}</button>`).join("")}
+  ${calcModes.map(c => `<button class="RP-BTN ${(S.rpCalcMode || 'Matrix') === c ? "on" : ""}" onclick="S.rpCalcMode='${c}';mui.tp('cfgRP',true)">${c}</button>`).join("")}
 </div>
 
 <div class="CL" style="margin-bottom:4px">Main Splitting</div>
 <div class="RP-BTNS">
-  ${splits.map(s=>`<button class="RP-BTN ${S.rpSplitting===s?"on":""}" onclick="S.rpSplitting='${s}';mui.tp('cfgRP',true)">${s}</button>`).join("")}
+  ${splits.map(s => `<button class="RP-BTN ${S.rpSplitting === s ? "on" : ""}" onclick="S.rpSplitting='${s}';mui.tp('cfgRP',true)">${s}</button>`).join("")}
 </div>
 
 <div class="R2">
@@ -1776,19 +2010,19 @@ ${prevSection}
 </div>
 
 <div class="RP-CK">
-  <input type="checkbox" id="rpBase" ${S.rpBasePrompt?"checked":""} onchange="S.rpBasePrompt=this.checked;scheduleSave()">
+  <input type="checkbox" id="rpBase" ${S.rpBasePrompt ? "checked" : ""} onchange="S.rpBasePrompt=this.checked;scheduleSave()">
   <label for="rpBase">Use base prompt</label>
 </div>
 <div class="RP-CK">
-  <input type="checkbox" id="rpCommon" ${S.rpCommonPrompt?"checked":""} onchange="S.rpCommonPrompt=this.checked;scheduleSave()">
+  <input type="checkbox" id="rpCommon" ${S.rpCommonPrompt ? "checked" : ""} onchange="S.rpCommonPrompt=this.checked;scheduleSave()">
   <label for="rpCommon">Use common prompt</label>
 </div>
 <div class="RP-CK">
-  <input type="checkbox" id="rpComNeg" ${S.rpComNegPrompt?"checked":""} onchange="S.rpComNegPrompt=this.checked;scheduleSave()">
+  <input type="checkbox" id="rpComNeg" ${S.rpComNegPrompt ? "checked" : ""} onchange="S.rpComNegPrompt=this.checked;scheduleSave()">
   <label for="rpComNeg">Use common negative prompt</label>
 </div>
 <div class="RP-CK">
-  <input type="checkbox" id="rpFlip" ${S.rpFlip?"checked":""} onchange="S.rpFlip=this.checked;scheduleSave()">
+  <input type="checkbox" id="rpFlip" ${S.rpFlip ? "checked" : ""} onchange="S.rpFlip=this.checked;scheduleSave()">
   <label for="rpFlip">Flip "," and ";"</label>
 </div>
 
@@ -1800,13 +2034,13 @@ ${prevSection}
 </div>
 <textarea class="NTA" style="min-height:72px;background:#13132a;border:1px solid #1e1e34;border-radius:7px;padding:7px 10px;font-size:12px;"
   placeholder="ADDCOMM&#10;prompt común&#10;ADDCOL&#10;región izquierda BREAK región derecha"
-  oninput="S.rpTemplate=this.value;scheduleSave()">${esc(S.rpTemplate||"")}</textarea>`;
+  oninput="S.rpTemplate=this.value;scheduleSave()">${esc(S.rpTemplate || "")}</textarea>`;
   }
 
   /* ── IMG2IMG — v22: completamente expandido con Modelos, ADetailer y CN ── */
   function rI2I() {
-    const i2iResizes = ["Just Resize","Crop and Resize","Fill","Latent Upscale"];
-    const rzo = i2iResizes.map(r=>`<option value="${esc(r)}" ${S.i2iResizeMode===r?"selected":""}>${esc(r)}</option>`).join("");
+    const i2iResizes = ["Just Resize", "Crop and Resize", "Fill", "Latent Upscale"];
+    const rzo = i2iResizes.map(r => `<option value="${esc(r)}" ${S.i2iResizeMode === r ? "selected" : ""}>${esc(r)}</option>`).join("");
     const dropContent = S.i2iImageB64
       ? `<img src="${S.i2iImageB64}" style="max-width:100%;max-height:200px;object-fit:contain;border-radius:9px">
          <div class="I2I-DROP-OVR">
@@ -1821,22 +2055,22 @@ ${prevSection}
     // ADetailer aviso si activo
     const adNote = S.adetailer
       ? `<div style="background:#7c3aed22;border:1px solid #7c3aed44;border-radius:8px;padding:7px 10px;font-size:11px;color:#a78bfa;margin-top:6px">
-           ✅ ADetailer activo — ${S.adSlots.filter(s=>s.enabled).length} detector(es) configurado(s) desde la pestaña Text2Img
+           ✅ ADetailer activo — ${S.adSlots.filter(s => s.enabled).length} detector(es) configurado(s) desde la pestaña Text2Img
          </div>`
       : `<div style="background:#1a1a2e;border:1px solid #1e1e34;border-radius:8px;padding:7px 10px;font-size:11px;color:#6b7280;margin-top:6px">
            ℹ️ ADetailer desactivado. Actívalo en la pestaña Text2Img para que también se aplique aquí.
          </div>`;
     // ControlNet aviso si activo
-    const cnActive = S.cnUnits.some(u=>u.enabled && u.model && u.model !== "none");
+    const cnActive = S.cnUnits.some(u => u.enabled && u.model && u.model !== "none");
     const cnNote = cnActive
       ? `<div style="background:#06b6d422;border:1px solid #06b6d444;border-radius:8px;padding:7px 10px;font-size:11px;color:#22d3ee;margin-top:6px">
-           ✅ ControlNet activo — ${S.cnUnits.filter(u=>u.enabled&&u.model&&u.model!=="none").length} unidad(es) configurada(s)
+           ✅ ControlNet activo — ${S.cnUnits.filter(u => u.enabled && u.model && u.model !== "none").length} unidad(es) configurada(s)
          </div>`
       : "";
     return `
 <div class="C">
   <div class="CT">Imagen de referencia</div>
-  <label for="i2iFileInp" class="I2I-DROP ${S.i2iImageB64?"has-img":""}">
+  <label for="i2iFileInp" class="I2I-DROP ${S.i2iImageB64 ? "has-img" : ""}">
     ${dropContent}
   </label>
   <div class="R2" style="margin-top:4px">
@@ -1858,7 +2092,7 @@ ${prevSection}
   <hr class="HR">
   <div class="NL">🚫 NEGATIVO</div>
   <textarea class="NTA" placeholder="worst quality, low quality…"
-    oninput="S.i2iNeg=this.value;scheduleSave()">${esc(S.i2iNeg||S.neg)}</textarea>
+    oninput="S.i2iNeg=this.value;scheduleSave()">${esc(S.i2iNeg || S.neg)}</textarea>
   <hr class="HR">
   <div class="TBAR">
     <button class="TBTN" onclick="mui.i2iCp()" title="Limpiar prompt">🗑️</button>
@@ -1872,16 +2106,16 @@ ${rSamplerSection()}
   <div class="CT">Opciones Img2Img</div>
   <div class="TR">
     <span class="TL">👤 ADetailer</span>
-    <label class="TOG"><input type="checkbox" ${S.adetailer?"checked":""} onchange="S.adetailer=this.checked;rerender()"><span class="TOGS"></span></label>
+    <label class="TOG"><input type="checkbox" ${S.adetailer ? "checked" : ""} onchange="S.adetailer=this.checked;rerender()"><span class="TOGS"></span></label>
   </div>
   ${adNote}
-  ${S.adetailer?`<div class="SC" style="display:block;margin-top:8px">${rADetailer()}</div>`:""}
+  ${S.adetailer ? `<div class="SC" style="display:block;margin-top:8px">${rADetailer()}</div>` : ""}
   <div class="TR" style="margin-top:10px">
     <span class="TL">🕹️ ControlNet</span>
-    <label class="TOG"><input type="checkbox" id="cnToggleI2I" ${cnActive?"checked":""} onchange="mui.cnToggle(this.checked);rerender()"><span class="TOGS"></span></label>
+    <label class="TOG"><input type="checkbox" id="cnToggleI2I" ${cnActive ? "checked" : ""} onchange="mui.cnToggle(this.checked);rerender()"><span class="TOGS"></span></label>
   </div>
   ${cnNote}
-  ${cnActive?`<div class="SC" style="display:block;margin-top:8px">${rControlNet()}</div>`:""}
+  ${cnActive ? `<div class="SC" style="display:block;margin-top:8px">${rControlNet()}</div>` : ""}
 </div>`;
   }
 
@@ -1892,62 +2126,109 @@ ${rSamplerSection()}
         <div style="color:#9ca3af;font-size:14px;font-weight:600;margin-bottom:5px">Sin tareas aún</div>
         <div style="font-size:12px">Genera tu primera imagen en Text2Img o Img2Img</div>
       </div>`;
-    return S.history.map(j=>buildCard(j)).join("");
+    return S.history.map(j => buildCard(j)).join("");
+  }
+
+  /* ── GALLERY ─────────────────────────────────────── */
+  function rGallery() {
+    // Recopilar todas las imágenes de jobs completados
+    const entries = [];
+    S.history.forEach(job => {
+      if (job.status === "done" && job.images && job.images.length) {
+        job.images.forEach((src, i) => {
+          entries.push({ src, jobId: job.id, imgIdx: i, params: job.params });
+        });
+      }
+    });
+
+    if (!entries.length) return `
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <button class="EBTN" onclick="mui.galRefresh()" style="font-size:11px;padding:4px 12px" title="Refrescar galería">🔄 Refrescar</button>
+      </div>
+      <div class="TEMPTY">
+        <div class="EI">🖼️</div>
+        <div style="color:#9ca3af;font-size:14px;font-weight:600;margin-bottom:5px">Galería vacía</div>
+        <div style="font-size:12px">Las imágenes generadas aparecerán aquí</div>
+        <button class="EBTN" onclick="mui.galRefresh()" style="margin-top:14px;font-size:12px;padding:7px 18px;color:#06b6d4;border-color:#06b6d444">🔄 Refrescar galería</button>
+      </div>`;
+
+    const total = entries.length;
+    const cards = entries.map(({ src, jobId, imgIdx, params }) => {
+      const mdl = (params.model || "—").replace(/\.[^/.]+$/, "").slice(0, 18);
+      return `
+<div class="GAL-ITEM" onclick="mui.galOpen('${jobId}', ${imgIdx})">
+  <img src="${src}" loading="lazy" class="GAL-IMG">
+  <div class="GAL-OVR">
+    <div class="GAL-META">${esc(mdl)}</div>
+    <div class="GAL-SEED">${params.seed && params.seed !== '−1' && params.seed !== '-1' ? '🌱 ' + String(params.seed).slice(0,10) : ''}</div>
+  </div>
+</div>`;
+    }).join("");
+
+    return `
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-shrink:0">
+  <span style="font-size:12px;color:#6b7280">${total} imagen${total !== 1 ? 'es' : ''} generada${total !== 1 ? 's' : ''}</span>
+  <div style="display:flex;gap:6px">
+    <button class="EBTN" onclick="rerender()" style="font-size:11px;padding:4px 10px" title="Refrescar galería">🔄 Refrescar</button>
+    <button class="EBTN" onclick="mui.galClear()" style="color:#f87171;border-color:#ef444433;font-size:11px;padding:4px 10px">🗑️ Limpiar</button>
+  </div>
+</div>
+<div class="GAL-GRID">${cards}</div>`;
   }
 
   function buildCard(job) {
-    const {id,params,images,status,progress,eta,error}=job;
-    const isGen=status==="generating",isDone=status==="done";
-    const pct=progress||0;
+    const { id, params, images, status, progress, eta, error } = job;
+    const isGen = status === "generating", isDone = status === "done";
+    const pct = progress || 0;
     const isI2I = params.mode === "img2img";
-    const chips=[
+    const chips = [
       `<span class="CHIP">${params.w}×${params.h}</span>`,
       `<span class="CHIP">${esc(params.sampler)}</span>`,
       `<span class="CHIP">${params.steps}s</span>`,
       `<span class="CHIP HL">CFG ${params.cfg}</span>`,
       `<span class="CHIP">×${params.count}</span>`,
     ];
-    if(isI2I)        chips.push(`<span class="CHIP HL">Img2Img dn:${params.dn}</span>`);
-    if(params.upscale)   chips.push(`<span class="CHIP HL">Upscale ×${params.upscaleX}</span>`);
-    if(params.adetailer) chips.push(`<span class="CHIP HL">ADetailer</span>`);
-    if(params.rp)        chips.push(`<span class="CHIP HL">RegPrompt</span>`);
-    if(params.layerDiff) chips.push(`<span class="CHIP HL">LayerDiff</span>`);
-    const igc=images.length>=4?"G4":images.length===2?"G2":"G1";
-    let h=`<div class="TC ${isGen?"TC-G":isDone?"TC-D":"TC-E"}" id="tc-${id}">
+    if (isI2I) chips.push(`<span class="CHIP HL">Img2Img dn:${params.dn}</span>`);
+    if (params.upscale) chips.push(`<span class="CHIP HL">Upscale ×${params.upscaleX}</span>`);
+    if (params.adetailer) chips.push(`<span class="CHIP HL">ADetailer</span>`);
+    if (params.rp) chips.push(`<span class="CHIP HL">RegPrompt</span>`);
+    if (params.layerDiff) chips.push(`<span class="CHIP HL">LayerDiff</span>`);
+    const igc = images.length >= 4 ? "G4" : images.length === 2 ? "G2" : "G1";
+    let h = `<div class="TC ${isGen ? "TC-G" : isDone ? "TC-D" : "TC-E"}" id="tc-${id}">
       <div class="TC-TOP">
         <div class="TC-SR">
-          <span class="TC-BG ${isGen?"BG-G":isDone?"BG-D":"BG-E"}">${isGen?"⏳ Generando…":isDone?"✅ Completado":"❌ Error"}</span>
+          <span class="TC-BG ${isGen ? "BG-G" : isDone ? "BG-D" : "BG-E"}">${isGen ? "⏳ Generando…" : isDone ? "✅ Completado" : "❌ Error"}</span>
           <span class="TC-TS">${params.ts}</span>
         </div>
-        <div class="TC-MDL">${isI2I?"🖼️":"🎨"} <span>${esc((params.model||"—").replace(/\.[^/.]+$/,"").slice(0,24))}</span>
-          ${params.loras&&params.loras!=="—"?`&nbsp;✨ <span>${esc(params.loras.slice(0,22))}</span>`:""}
+        <div class="TC-MDL">${isI2I ? "🖼️" : "🎨"} <span>${esc((params.model || "—").replace(/\.[^/.]+$/, "").slice(0, 24))}</span>
+          ${params.loras && params.loras !== "—" ? `&nbsp;✨ <span>${esc(params.loras.slice(0, 22))}</span>` : ""}
         </div>
         <div class="TC-P">${esc(params.prompt)}</div>
         <div class="CHIPS">${chips.join("")}</div>`;
-    if(isGen) h+=`<div class="GP">
+    if (isGen) h += `<div class="GP">
         <div class="GPR">
           <span class="GPCT" id="gpct-${id}">${pct}%</span>
-          <span class="GETA" id="geta-${id}">${eta>0?"ETA "+eta+"s":pct>0?"procesando…":"esperando…"}</span>
+          <span class="GETA" id="geta-${id}">${eta > 0 ? "ETA " + eta + "s" : pct > 0 ? "procesando…" : "esperando…"}</span>
         </div>
         <div class="GPBG"><div class="GPFG" id="gpfg-${id}" style="width:${pct}%"></div></div>
       </div>
-      <div class="LP" id="lp-${id}" style="${S.liveImg?"cursor:pointer":""}">
-        ${S.liveImg?`<img src="${S.liveImg}" onclick="mui.lbOpen(['${S.liveImg}'],'${S.liveImg}','${id}')" style="cursor:pointer;width:100%;border-radius:8px;display:block">`:`<div class="LP-PH"><div class="SPIN"></div><span>Esperando primer frame…</span></div>`}
+      <div class="LP" id="lp-${id}" style="${S.liveImg ? "cursor:pointer" : ""}">
+        ${S.liveImg ? `<img src="${S.liveImg}" onclick="mui.lbOpen(['${S.liveImg}'],'${S.liveImg}','${id}')" style="cursor:pointer;width:100%;border-radius:8px;display:block">` : `<div class="LP-PH"><div class="SPIN"></div><span>Esperando primer frame…</span></div>`}
       </div>`;
-    if(error) h+=`<div style="font-size:12px;color:#f87171;margin-top:4px">⚠️ ${esc(error)}</div>`;
-    h+=`</div>`;
-    if(isDone&&images.length){
-      h+=`<div class="IG ${igc}">`;
+    if (error) h += `<div style="font-size:12px;color:#f87171;margin-top:4px">⚠️ ${esc(error)}</div>`;
+    h += `</div>`;
+    if (isDone && images.length) {
+      h += `<div class="IG ${igc}">`;
       // MEJORA-11: onclick abre lightbox en lugar de nueva pestaña
-      images.forEach((src,i)=>{
-        h+=`<div class="IW" onclick="mui.lbOpenFromHistory('${id}', ${i})">
+      images.forEach((src, i) => {
+        h += `<div class="IW" onclick="mui.lbOpenFromHistory('${id}', ${i})">
           <img src="${src}" loading="lazy">
           <div class="IACT"><button class="IA" onclick="event.stopPropagation();mui.dlFromHistory('${id}', ${i})">💾</button></div>
         </div>`;
       });
-      h+=`</div>`;
+      h += `</div>`;
     }
-    if(!isGen) h+=`<div class="TC-EX">
+    if (!isGen) h += `<div class="TC-EX">
       <div style="display:flex;gap:6px;margin-bottom:6px">
         <button class="EBTN" style="flex:1" onclick="mui.exp('${id}')"><span id="eico-${id}">▼</span> Ver params</button>
         <button class="EBTN" style="flex:1" onclick="mui.copyParams('${id}')">📋 Copiar params</button>
@@ -1956,62 +2237,62 @@ ${rSamplerSection()}
         <button class="EBTN" style="flex:1;background:#7c3aed22;border-color:#7c3aed66;color:#a78bfa" onclick="mui.remixParams('${id}')">🔀 Remezclar</button>
       </div>
       <div id="prm-${id}" class="PRMS">
-        <div class="PR"><span class="PK">Prompt</span><span class="PV">${esc(params.prompt.slice(0,80))}${params.prompt.length>80?"…":""}</span></div>
-        <div class="PR"><span class="PK">Negativo</span><span class="PV">${esc((params.neg||"").slice(0,60))}${(params.neg||"").length>60?"…":""}</span></div>
-        <div class="PR"><span class="PK">Modelo</span><span class="PV">${esc((params.model||"—").replace(/\.[^/.]+$/,"").slice(0,28))}</span></div>
-        ${params.loras&&params.loras!=="—"?`<div class="PR"><span class="PK">LoRAs</span><span class="PV">${esc(params.loras)}</span></div>`:""}
-        <div class="PR"><span class="PK">Sampler/Sch</span><span class="PV">${esc(params.sampler)} / ${esc(params.scheduler||"Auto")}</span></div>
+        <div class="PR"><span class="PK">Prompt</span><span class="PV">${esc(params.prompt.slice(0, 80))}${params.prompt.length > 80 ? "…" : ""}</span></div>
+        <div class="PR"><span class="PK">Negativo</span><span class="PV">${esc((params.neg || "").slice(0, 60))}${(params.neg || "").length > 60 ? "…" : ""}</span></div>
+        <div class="PR"><span class="PK">Modelo</span><span class="PV">${esc((params.model || "—").replace(/\.[^/.]+$/, "").slice(0, 28))}</span></div>
+        ${params.loras && params.loras !== "—" ? `<div class="PR"><span class="PK">LoRAs</span><span class="PV">${esc(params.loras)}</span></div>` : ""}
+        <div class="PR"><span class="PK">Sampler/Sch</span><span class="PV">${esc(params.sampler)} / ${esc(params.scheduler || "Auto")}</span></div>
         <div class="PR"><span class="PK">Steps / CFG</span><span class="PV">${params.steps} / ${params.cfg}</span></div>
         <div class="PR"><span class="PK">Seed</span><span class="PV">${params.seed}</span></div>
         <div class="PR"><span class="PK">Tamaño</span><span class="PV">${params.w}×${params.h} ×${params.count}</span></div>
-        ${params.upscale?`<div class="PR"><span class="PK">Upscaler</span><span class="PV">${esc(params.upscaler)} ×${params.upscaleX}</span></div>`:""}
-        ${params.adetailer?`<div class="PR"><span class="PK">ADetailer</span><span class="PV">${esc(params.adSlots?.join(", ")||"")}</span></div>`:""}
-        ${params.rp?`<div class="PR"><span class="PK">RegPrompter</span><span class="PV">${esc(params.rpMode)} / ${esc(params.rpSplitting||"")}</span></div>`:""}
-        ${params.layerDiff?`<div class="PR"><span class="PK">LayerDiff</span><span class="PV">✓</span></div>`:""}
-        ${isI2I?`<div class="PR"><span class="PK">Denoising</span><span class="PV">${params.dn}</span></div>`:""}
+        ${params.upscale ? `<div class="PR"><span class="PK">Upscaler</span><span class="PV">${esc(params.upscaler)} ×${params.upscaleX}</span></div>` : ""}
+        ${params.adetailer ? `<div class="PR"><span class="PK">ADetailer</span><span class="PV">${esc(params.adSlots?.join(", ") || "")}</span></div>` : ""}
+        ${params.rp ? `<div class="PR"><span class="PK">RegPrompter</span><span class="PV">${esc(params.rpMode)} / ${esc(params.rpSplitting || "")}</span></div>` : ""}
+        ${params.layerDiff ? `<div class="PR"><span class="PK">LayerDiff</span><span class="PV">✓</span></div>` : ""}
+        ${isI2I ? `<div class="PR"><span class="PK">Denoising</span><span class="PV">${params.dn}</span></div>` : ""}
       </div>
     </div>`;
-    return h+"</div>";
+    return h + "</div>";
   }
 
   function updateTaskCard(jobId) {
-    const job=S.history.find(j=>j.id===jobId); if(!job) return;
-    if(job.status==="generating"){
-      const pct=job.progress||0, etar=job.eta||0;
-      const fg=$("gpfg-"+jobId),pce=$("gpct-"+jobId),ete=$("geta-"+jobId),lpe=$("lp-"+jobId);
-      if(fg) fg.style.width=pct+"%";
-      if(pce) pce.textContent=pct+"%";
-      if(ete) ete.textContent=etar>0?"ETA "+etar+"s":pct>0?"procesando…":"esperando…";
-      if(lpe&&S.liveImg) lpe.innerHTML=`<img src="${S.liveImg}" onclick="mui.lbOpen(['${S.liveImg}'],'${S.liveImg}','${jobId}')" style="cursor:pointer;width:100%;border-radius:8px;display:block">`;
+    const job = S.history.find(j => j.id === jobId); if (!job) return;
+    if (job.status === "generating") {
+      const pct = job.progress || 0, etar = job.eta || 0;
+      const fg = $("gpfg-" + jobId), pce = $("gpct-" + jobId), ete = $("geta-" + jobId), lpe = $("lp-" + jobId);
+      if (fg) fg.style.width = pct + "%";
+      if (pce) pce.textContent = pct + "%";
+      if (ete) ete.textContent = etar > 0 ? "ETA " + etar + "s" : pct > 0 ? "procesando…" : "esperando…";
+      if (lpe && S.liveImg) lpe.innerHTML = `<img src="${S.liveImg}" onclick="mui.lbOpen(['${S.liveImg}'],'${S.liveImg}','${jobId}')" style="cursor:pointer;width:100%;border-radius:8px;display:block">`;
     } else {
-      const el=$("tc-"+jobId); if(!el){rerender();return;}
-      const tmp=document.createElement("div"); tmp.innerHTML=buildCard(job);
-      el.parentNode.replaceChild(tmp.firstElementChild,el);
+      const el = $("tc-" + jobId); if (!el) { rerender(); return; }
+      const tmp = document.createElement("div"); tmp.innerHTML = buildCard(job);
+      el.parentNode.replaceChild(tmp.firstElementChild, el);
     }
-    const btn=$("t-tasks"); if(!btn) return;
-    const busy=S.history.some(j=>j.status==="generating");
-    const dot=btn.querySelector(".dot");
-    if(busy&&!dot){const d=document.createElement("span");d.className="dot";btn.appendChild(d);}
-    else if(!busy&&dot) dot.remove();
+    const btn = $("t-tasks"); if (!btn) return;
+    const busy = S.history.some(j => j.status === "generating");
+    const dot = btn.querySelector(".dot");
+    if (busy && !dot) { const d = document.createElement("span"); d.className = "dot"; btn.appendChild(d); }
+    else if (!busy && dot) dot.remove();
   }
 
   /* ── EXTRA ────────────────────────────────────────── */
   function rExtra() {
-    const stateSize = (() => { try { return (localStorage.getItem("mui_state_v10")||"").length; } catch(e){return 0;} })();
+    const stateSize = (() => { try { return (localStorage.getItem("mui_state_v10") || "").length; } catch (e) { return 0; } })();
     const hasCivi = !!document.getElementById("civicomfy-open-btn");
     return `
 <div class="C">
   ${hasCivi ? `<div class="ABR" style="margin-bottom:15px"><button class="AB" onclick="var btn=document.getElementById('civicomfy-open-btn'); if(btn) btn.click();" style="background:linear-gradient(135deg,#7c3aed44,#06b6d444);border-color:#5c8aff;color:#fff;padding:12px;font-size:14px;font-weight:600">🎨 Abrir Civicomfy (Descargas)</button></div>` : ""}
   <div class="CT">Debug Info</div>
   <div style="font-size:12px;color:#6b7280;line-height:1.9">
-    <div>📱 Dispositivo: <span style="color:#e5e7eb">${MOBILE?"Móvil":"PC"}</span></div>
+    <div>📱 Dispositivo: <span style="color:#e5e7eb">${MOBILE ? "Móvil" : "PC"}</span></div>
     <div>📐 Viewport: <span style="color:#e5e7eb">${getVW()}×${getVH()}</span></div>
     <div>🔍 Body zoom: <span style="color:#f59e0b">${getBodyZoom().toFixed(3)}</span></div>
     <div>🎨 Modelos: <span style="color:#e5e7eb">${S.models.length}</span></div>
     <div>✨ LoRAs: <span style="color:#e5e7eb">${S.loras.length}</span></div>
     <div>📋 Historial: <span style="color:#e5e7eb">${S.history.length}</span></div>
-    <div>💾 Estado guardado: <span style="color:#e5e7eb">${stateSize > 0 ? (stateSize/1024).toFixed(1)+" KB":"—"}</span></div>
-    <div>⏱️ Datos cargados: <span style="color:#e5e7eb">${S._dataLoaded?new Date(S._dataTs).toLocaleTimeString("es"):"—"}</span></div>
+    <div>💾 Estado guardado: <span style="color:#e5e7eb">${stateSize > 0 ? (stateSize / 1024).toFixed(1) + " KB" : "—"}</span></div>
+    <div>⏱️ Datos cargados: <span style="color:#e5e7eb">${S._dataLoaded ? new Date(S._dataTs).toLocaleTimeString("es") : "—"}</span></div>
   </div>
   <div class="ABR" style="margin-top:10px">
     <button class="AB" onclick="mui.refresh(true)">🔄 Recargar forzado</button>
@@ -2025,59 +2306,59 @@ ${rSamplerSection()}
 
   /* ══ MODALS ══════════════════════════════════ */
   function fillMdl(f) {
-    const el=$("mdlL"), cnt=$("mdlC"); if(!el) return;
-    if(!S.models.length){
-      el.innerHTML=`<div style="color:#6b7280;text-align:center;padding:22px;font-size:13px">⚠️ Sin modelos.
+    const el = $("mdlL"), cnt = $("mdlC"); if (!el) return;
+    if (!S.models.length) {
+      el.innerHTML = `<div style="color:#6b7280;text-align:center;padding:22px;font-size:13px">⚠️ Sin modelos.
         <button style="margin-top:8px;background:#7c3aed22;border:1px solid #7c3aed44;color:#a78bfa;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:12px" onclick="mui.refresh(true)">🔄 Reintentar</button></div>`;
       return;
     }
-    const flt=(f||"").toLowerCase();
-    const list=flt?S.models.filter(m=>(m.t||"").toLowerCase().includes(flt)):S.models;
-    if(cnt) cnt.textContent="("+list.length+"/"+S.models.length+")";
-    el.innerHTML=list.map(m=>{
-      const lbl=(m.t||"").replace(/\.[^/.]+$/,"").slice(0,36);
-      const sel=m.t===S.model;
-      const th=m.preview.length?imgTag(m.preview,"🎨"):'<span style="font-size:18px">🎨</span>';
-      return `<div class="MI ${sel?"on":""}" onclick="mui.pm('${escA(m.t)}')">
+    const flt = (f || "").toLowerCase();
+    const list = flt ? S.models.filter(m => (m.t || "").toLowerCase().includes(flt)) : S.models;
+    if (cnt) cnt.textContent = "(" + list.length + "/" + S.models.length + ")";
+    el.innerHTML = list.map(m => {
+      const lbl = (m.t || "").replace(/\.[^/.]+$/, "").slice(0, 36);
+      const sel = m.t === S.model;
+      const th = m.preview.length ? imgTag(m.preview, "🎨") : '<span style="font-size:18px">🎨</span>';
+      return `<div class="MI ${sel ? "on" : ""}" onclick="mui.pm('${escA(m.t)}')">
         <div class="MITH" data-fb="🎨">${th}</div>
         <div class="MI-I"><div class="MIT">${esc(lbl)}</div>
-          ${m.hash?`<div style="font-size:10px;color:#4b5563">#${m.hash.slice(0,8)}</div>`:""}
-        </div>${sel?'<span class="MIC">✓</span>':""}
+          ${m.hash ? `<div style="font-size:10px;color:#4b5563">#${m.hash.slice(0, 8)}</div>` : ""}
+        </div>${sel ? '<span class="MIC">✓</span>' : ""}
       </div>`;
-    }).join("")||'<div style="color:#6b7280;text-align:center;padding:14px;font-size:12px">Sin resultados</div>';
+    }).join("") || '<div style="color:#6b7280;text-align:center;padding:14px;font-size:12px">Sin resultados</div>';
   }
 
   let _lorSlot = -1;
 
   async function fillLorAsync(f) {
-    const el=$("lorL"), cnt=$("lorC"); if(!el) return;
-    const all=[{n:"",a:"— Ninguno —",preview:[]}].concat(S.loras);
-    const flt=(f||"").toLowerCase();
-    const list=flt?all.filter(l=>(l.a||l.n||"").toLowerCase().includes(flt)):all;
-    if(cnt) cnt.textContent="("+(list.length-1)+"/"+S.loras.length+")";
+    const el = $("lorL"), cnt = $("lorC"); if (!el) return;
+    const all = [{ n: "", a: "— Ninguno —", preview: [] }].concat(S.loras);
+    const flt = (f || "").toLowerCase();
+    const list = flt ? all.filter(l => (l.a || l.n || "").toLowerCase().includes(flt)) : all;
+    if (cnt) cnt.textContent = "(" + (list.length - 1) + "/" + S.loras.length + ")";
     const curN = _lorSlot >= 0 && _lorSlot < S.loras_active.length
       ? S.loras_active[_lorSlot].n : "";
-    el.innerHTML=list.map(l=>{
-      const sel=l.n===curN;
-      const th=l.preview&&l.preview.length?imgTag(l.preview,"✨"):'<span style="font-size:18px">✨</span>';
-      const twc=l.n?S._civitai[l.n]:"";
-      const twHtml=twc!=null&&twc
-        ?`<div style="font-size:10px;color:#a78bfa;margin-top:2px">🏷️ ${esc(twc.slice(0,26))}${twc.length>26?"…":""}</div>`
-        :(l.n&&S._civitai[l.n]===undefined
-          ?`<div id="twld-${uid()}" data-lname="${escA(l.n)}" style="font-size:10px;color:#4b5563;font-style:italic">cargando…</div>`
-          :"");
-      return `<div class="MI ${sel?"on":""}" onclick="mui.plSlot('${escA(l.n)}')">
+    el.innerHTML = list.map(l => {
+      const sel = l.n === curN;
+      const th = l.preview && l.preview.length ? imgTag(l.preview, "✨") : '<span style="font-size:18px">✨</span>';
+      const twc = l.n ? S._civitai[l.n] : "";
+      const twHtml = twc != null && twc
+        ? `<div style="font-size:10px;color:#a78bfa;margin-top:2px">🏷️ ${esc(twc.slice(0, 26))}${twc.length > 26 ? "…" : ""}</div>`
+        : (l.n && S._civitai[l.n] === undefined
+          ? `<div id="twld-${uid()}" data-lname="${escA(l.n)}" style="font-size:10px;color:#4b5563;font-style:italic">cargando…</div>`
+          : "");
+      return `<div class="MI ${sel ? "on" : ""}" onclick="mui.plSlot('${escA(l.n)}')">
         <div class="MITH" data-fb="✨">${th}</div>
-        <div class="MI-I"><div class="MIT">${esc(l.a||l.n||"Ninguno")}</div>${twHtml}</div>
-        ${sel?'<span class="MIC">✓</span>':""}
+        <div class="MI-I"><div class="MIT">${esc(l.a || l.n || "Ninguno")}</div>${twHtml}</div>
+        ${sel ? '<span class="MIC">✓</span>' : ""}
       </div>`;
     }).join("");
-    list.filter(l=>l.n&&S._civitai[l.n]===undefined).slice(0,12).forEach(l=>{
-      fetchTriggers(l).then(tw=>{
-        el.querySelectorAll('[data-lname="'+escA(l.n)+'"]').forEach(div=>{
+    list.filter(l => l.n && S._civitai[l.n] === undefined).slice(0, 12).forEach(l => {
+      fetchTriggers(l).then(tw => {
+        el.querySelectorAll('[data-lname="' + escA(l.n) + '"]').forEach(div => {
           div.removeAttribute("data-lname");
-          if(tw){ div.style.color="#a78bfa"; div.style.fontStyle=""; div.textContent="🏷️ "+tw.slice(0,26)+(tw.length>26?"…":""); }
-          else   div.remove();
+          if (tw) { div.style.color = "#a78bfa"; div.style.fontStyle = ""; div.textContent = "🏷️ " + tw.slice(0, 26) + (tw.length > 26 ? "…" : ""); }
+          else div.remove();
         });
       });
     });
@@ -2086,12 +2367,12 @@ ${rSamplerSection()}
   /* ══ HELPERS ══════════════════════════════════ */
   // MEJORA-10: botón Generate/Stop
   function updateGenBtn() {
-    const btn=$("muiGB"),txt=$("muiGT"); if(!btn||!txt) return;
+    const btn = $("muiGB"), txt = $("muiGT"); if (!btn || !txt) return;
     if (S.busy) {
       btn.disabled = false;
       btn.classList.add("stop-btn");
       $("muiPB").style.width = S.progress + "%";
-      txt.innerHTML = '<div class="SPIN"></div> '+S.progress+'% — '+T.stop;
+      txt.innerHTML = '<div class="SPIN"></div> ' + S.progress + '% — ' + T.stop;
     } else {
       btn.disabled = false;
       btn.classList.remove("stop-btn");
@@ -2102,15 +2383,15 @@ ${rSamplerSection()}
   }
 
   let _nt;
-  function notify(msg,err) {
-    const el=$("muiToast"); if(!el) return;
-    el.textContent=msg; el.className="show"+(err?" err":"");
-    clearTimeout(_nt); _nt=setTimeout(()=>el.classList.remove("show"),3200);
+  function notify(msg, err) {
+    const el = $("muiToast"); if (!el) return;
+    el.textContent = msg; el.className = "show" + (err ? " err" : "");
+    clearTimeout(_nt); _nt = setTimeout(() => el.classList.remove("show"), 3200);
   }
 
   function refreshLoraList() {
-    const el=$("loraList"); if(!el) return;
-    el.innerHTML=rLoraList();
+    const el = $("loraList"); if (!el) return;
+    el.innerHTML = rLoraList();
   }
 
   /* ══ LIGHTBOX ════════════════════════════════
@@ -2125,79 +2406,81 @@ ${rSamplerSection()}
   window.rerender = rerender;
   window.mui = {
     open() {
-      let m=document.querySelector("meta[name=viewport]");
-      if(!m){m=document.createElement("meta");m.name="viewport";document.head.appendChild(m);}
-      m.content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover";
-      const ov=$("muiOv"); ov.classList.add("open"); applySize();
+      let m = document.querySelector("meta[name=viewport]");
+      if (!m) { m = document.createElement("meta"); m.name = "viewport"; document.head.appendChild(m); }
+      m.content = "width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover";
+      const ov = $("muiOv"); ov.classList.add("open"); applySize();
       rerender(); loadData();
       detectBackend();
+      // Detectar extensiones y activar TAC bridge si está instalado
+      detectExtensions().then(() => { if (S._tacInstalled) setupTACBridge(); });
     },
-    close(){ $("muiOv").classList.remove("open"); },
-    async refresh(force){ 
-      notify(T.reloading); 
+    close() { $("muiOv").classList.remove("open"); },
+    async refresh(force) {
+      notify(T.reloading);
       try {
         await POST("/sdapi/v1/refresh-checkpoints", {});
         await POST("/sdapi/v1/refresh-loras", {});
-      } catch(e) {}
-      loadData(force||false); 
+      } catch (e) { }
+      loadData(force || false);
     },
-    tab(t){
-      S.tab=t;
-      document.querySelectorAll(".TAB").forEach(b=>b.classList.remove("on"));
-      const b=$("t-"+t);if(b)b.classList.add("on");
+    tab(t) {
+      S.tab = t;
+      document.querySelectorAll(".TAB").forEach(b => b.classList.remove("on"));
+      const b = $("t-" + t); if (b) b.classList.add("on");
       rerender();
       updateGenBtn();
     },
-    ar(k){ S.ar=k; scheduleSave(); rerender(); },
-    st(v){ S.steps=clamp(parseInt(v)||20,1,150); const r=$("stR"),i=$("stI"); if(r){r.value=S.steps;r.style.setProperty("--p",(S.steps/150*100)+"%");} if(i)i.value=S.steps; scheduleSave(); },
+    ar(k) { S.ar = k; scheduleSave(); rerender(); },
+    st(v) { S.steps = clamp(parseInt(v) || 20, 1, 150); const r = $("stR"), i = $("stI"); if (r) { r.value = S.steps; r.style.setProperty("--p", (S.steps / 150 * 100) + "%"); } if (i) i.value = S.steps; scheduleSave(); },
     // FIX BUG-08: CFG ahora permite 0 (para LCM/Turbo)
-    cf(v){ S.cfg=clamp(parseFloat(v)||0,0,30); const r=$("cfR"),i=$("cfI"); if(r){r.value=S.cfg;r.style.setProperty("--p",(S.cfg/30*100)+"%");} if(i)i.value=S.cfg; scheduleSave(); },
-    tp(id,show){
-      const el=$(id); if(!el) return;
-      el.style.display=show?"block":"none";
+    cf(v) { S.cfg = clamp(parseFloat(v) || 0, 0, 30); const r = $("cfR"), i = $("cfI"); if (r) { r.value = S.cfg; r.style.setProperty("--p", (S.cfg / 30 * 100) + "%"); } if (i) i.value = S.cfg; scheduleSave(); },
+    tp(id, show) {
+      const el = $(id); if (!el) return;
+      el.style.display = show ? "block" : "none";
       if (show) {
-        if (id==="cfgAD") el.innerHTML=rADetailer();
-        if (id==="cfgRP") el.innerHTML=rRegionalPrompter();
-        if (id==="cfgCN") el.innerHTML=rControlNet();
-        if (id==="cfgLD") {} // ya se renderiza como parte de rOpcionesSection
+        if (id === "cfgAD") el.innerHTML = rADetailer();
+        if (id === "cfgRP") el.innerHTML = rRegionalPrompter();
+        if (id === "cfgCN") el.innerHTML = rControlNet();
+        if (id === "cfgLD") { } // ya se renderiza como parte de rOpcionesSection
       }
     },
-    adTab(i){ S.adTab=i; const el=$("cfgAD"); if(el) el.innerHTML=rADetailer(); },
+    adTab(i) { S.adTab = i; const el = $("cfgAD"); if (el) el.innerHTML = rADetailer(); },
 
     // ── Checkpoint ──────────────────────────────
-    om(){ const s=$("mdlS");if(s)s.value="";fillMdl("");$("mdlM").classList.add("open"); },
-    fm(v){ fillMdl(v); },
-    async pm(t){
+    om() { const s = $("mdlS"); if (s) s.value = ""; fillMdl(""); $("mdlM").classList.add("open"); },
+    fm(v) { fillMdl(v); },
+    async pm(t) {
       this.cm("mdlM");
       S._modelChanging = true; rerender(); notify(T.loadingModel);
       try {
-        await POST("/sdapi/v1/options",{sd_model_checkpoint:t});
-        S.model=t; S._modelChanging=false;
-        notify(T.modelLoaded+" — "+t.replace(/\.[^/.]+$/,"").slice(0,22));
+        await POST("/sdapi/v1/options", { sd_model_checkpoint: t });
+        S.model = t; S._modelChanging = false;
+        notify(T.modelLoaded + " — " + t.replace(/\.[^/.]+$/, "").slice(0, 22));
         scheduleSave();
-      } catch(e){ S._modelChanging=false; notify(T.modelError,true); }
+      } catch (e) { S._modelChanging = false; notify(T.modelError, true); }
       rerender();
     },
 
     // ── Multi-LoRA ──────────────────────────────
-    addLora(){
-      if (S.loras_active.length >= 4){ notify(T.maxLoras,true); return; }
+    addLora() {
+      if (S.loras_active.length >= 4) { notify(T.maxLoras, true); return; }
       _lorSlot = -1;
-      const s=$("lorS");if(s)s.value="";
+      const s = $("lorS"); if (s) s.value = "";
       fillLorAsync("");
       $("lorM").classList.add("open");
     },
-    changeLora(idx){
+    changeLora(idx) {
       _lorSlot = idx;
-      const s=$("lorS");if(s)s.value="";
+      const s = $("lorS"); if (s) s.value = "";
       fillLorAsync("");
       $("lorM").classList.add("open");
     },
-    removeLora(idx){
-      S.loras_active.splice(idx,1);
+    removeLora(idx) {
+      S.loras_active.splice(idx, 1);
       refreshLoraList(); scheduleSave();
     },
-    async plSlot(n){
+    async plSlot(n) {
       if (!n) {
         if (_lorSlot >= 0 && _lorSlot < S.loras_active.length) {
           S.loras_active.splice(_lorSlot, 1);
@@ -2229,11 +2512,11 @@ ${rSamplerSection()}
       }
       refreshLoraList(); scheduleSave();
     },
-    fl(v){ fillLorAsync(v); },
-    cm(id){ $(id).classList.remove("open"); },
+    fl(v) { fillLorAsync(v); },
+    cm(id) { $(id).classList.remove("open"); },
 
     // FIX BUG-05: Embedding funcional
-    addEmbedding(){
+    addEmbedding() {
       const emb = prompt("Nombre del embedding/TI (ej: bad_prompt_version2):");
       if (!emb || !emb.trim()) return;
       S.prompt = S.prompt
@@ -2241,12 +2524,12 @@ ${rSamplerSection()}
         : "(" + emb.trim() + ":1.0)";
       const ta = $("mTa");
       if (ta) { ta.value = S.prompt; }
-      notify("✅ Embedding añadido: " + emb.trim().slice(0,20));
+      notify("✅ Embedding añadido: " + emb.trim().slice(0, 20));
       scheduleSave();
     },
 
     // ── Img2Img ──────────────────────────────────
-    i2iImgLoad(input){
+    i2iImgLoad(input) {
       const file = input.files && input.files[0];
       if (!file) return;
       if (!file.type.startsWith("image/")) { notify(T.onlyImages, true); return; }
@@ -2260,8 +2543,8 @@ ${rSamplerSection()}
       reader.onerror = () => notify(T.imgError, true);
       reader.readAsDataURL(file);
     },
-    i2iCp(){ S.i2iPrompt = ""; const ta=$("i2iPTa"); if(ta) ta.value=""; },
-    i2iSync(){ S.i2iPrompt = S.prompt; const ta=$("i2iPTa"); if(ta) ta.value=S.prompt; notify("⬆️ Prompt sincronizado"); },
+    i2iCp() { S.i2iPrompt = ""; const ta = $("i2iPTa"); if (ta) ta.value = ""; },
+    i2iSync() { S.i2iPrompt = S.prompt; const ta = $("i2iPTa"); if (ta) ta.value = S.prompt; notify("⬆️ Prompt sincronizado"); },
 
     // ── ControlNet ──────────────────────────────
     cnToggle(checked) {
@@ -2308,7 +2591,7 @@ ${rSamplerSection()}
         controlnet_processor_res: u.detectRes || 512,
         controlnet_threshold_a: thA, controlnet_threshold_b: thB,
       };
-      const detectPaths = ["/controlnet/detect","/sdapi/v1/controlnet/detect","/api/controlnet/detect"];
+      const detectPaths = ["/controlnet/detect", "/sdapi/v1/controlnet/detect", "/api/controlnet/detect"];
       let result = null, lastErr = "";
       for (const path of detectPaths) {
         try {
@@ -2319,7 +2602,7 @@ ${rSamplerSection()}
           if (r.ok) { result = await r.json(); break; }
           else if (r.status === 404) { lastErr = "404 en " + path; continue; }
           else { lastErr = "HTTP " + r.status + " en " + path; break; }
-        } catch(e) { lastErr = e.message; if (e.name !== "AbortError") continue; break; }
+        } catch (e) { lastErr = e.message; if (e.name !== "AbortError") continue; break; }
       }
       if (result && result.images && result.images.length > 0) {
         const p64 = result.images[0];
@@ -2327,7 +2610,7 @@ ${rSamplerSection()}
         notify("✅ Preprocesado listo — " + u.preprocessor);
       } else {
         u.preprocessedB64 = null;
-        notify("ℹ️ Preview no disponible ("+lastErr+"). Forge aplicará el preprocessor durante la generación.", false);
+        notify("ℹ️ Preview no disponible (" + lastErr + "). Forge aplicará el preprocessor durante la generación.", false);
       }
       u.detecting = false; this.cnRefresh();
     },
@@ -2340,87 +2623,87 @@ ${rSamplerSection()}
     },
 
     // ── Generate / Stop ─────────────────────────
-    async genOrStop(){
+    async genOrStop() {
       if (S.busy) { await stopGeneration(); }
       else if (S.tab === "img2img") { await generateI2I(); }
       else { await generate(); }
     },
-    async gen(){ await generate(); },
+    async gen() { await generate(); },
 
     // ── Tasks / Cards ────────────────────────────
-    exp(id){ const p=$("prm-"+id),ico=$("eico-"+id);if(!p||!ico)return;const open=p.classList.toggle("open");ico.textContent=open?"▲":"▼"; },
+    exp(id) { const p = $("prm-" + id), ico = $("eico-" + id); if (!p || !ico) return; const open = p.classList.toggle("open"); ico.textContent = open ? "▲" : "▼"; },
 
     // MEJORA-07: copiar parámetros en formato CivitAI
-    copyParams(jobId){
-      const job = S.history.find(j=>j.id===jobId); if(!job) return;
+    copyParams(jobId) {
+      const job = S.history.find(j => j.id === jobId); if (!job) return;
       const p = job.params;
 
       // Positive prompt (sin los <lora:...> tags — esos no van en CivitAI)
-      const cleanPrompt = (p.prompt||"").replace(/<lora:[^>]+>/g,"").replace(/,\s*,/g,",").trim().replace(/,\s*$/,"");
+      const cleanPrompt = (p.prompt || "").replace(/<lora:[^>]+>/g, "").replace(/,\s*,/g, ",").trim().replace(/,\s*$/, "");
 
       // Negative prompt
-      const neg = (p.neg||"").trim();
+      const neg = (p.neg || "").trim();
 
       // Metadata line en formato CivitAI
-      const size = (p.w||512)+"x"+(p.h||512);
-      const modelName = (p.model||"").replace(/\.[^/.]+$/,"");
-      const seed = p.seed||"-1";
-      const sampler = p.sampler||"Euler a";
+      const size = (p.w || 512) + "x" + (p.h || 512);
+      const modelName = (p.model || "").replace(/\.[^/.]+$/, "");
+      const seed = p.seed || "-1";
+      const sampler = p.sampler || "Euler a";
       const scheduler = (p.scheduler && p.scheduler !== "Automatic") ? p.scheduler : "Automatic";
-      const steps = p.steps||20;
-      const cfg = p.cfg||7;
+      const steps = p.steps || 20;
+      const cfg = p.cfg || 7;
 
-      let meta = "Steps: "+steps+", CFG scale: "+cfg+", Sampler: "+sampler+", Seed: "+seed+", Size: "+size;
-      if (modelName) meta += ", Model: "+modelName;
+      let meta = "Steps: " + steps + ", CFG scale: " + cfg + ", Sampler: " + sampler + ", Seed: " + seed + ", Size: " + size;
+      if (modelName) meta += ", Model: " + modelName;
       if (p.model) {
-        const mdl = S.models.find(m=>m.t===p.model);
-        if (mdl&&mdl.hash) meta += ", Model hash: "+mdl.hash.slice(0,10);
+        const mdl = S.models.find(m => m.t === p.model);
+        if (mdl && mdl.hash) meta += ", Model hash: " + mdl.hash.slice(0, 10);
       }
       // Versión SD WebUI
       meta += ", Version: 1.10.1";
-      if (scheduler) meta += ", Schedule type: "+scheduler;
+      if (scheduler) meta += ", Schedule type: " + scheduler;
 
       // Hires / upscale
       if (p.upscale && p.upscaleX && p.upscaleX > 1) {
-        meta += ", Hires prompt: , Hires upscale: "+p.upscaleX;
-        meta += ", Hires upscaler: "+(p.upscaler||"Latent");
-        meta += ", Denoising strength: "+(p.upscaleDn||0.7);
+        meta += ", Hires prompt: , Hires upscale: " + p.upscaleX;
+        meta += ", Hires upscaler: " + (p.upscaler || "Latent");
+        meta += ", Denoising strength: " + (p.upscaleDn || 0.7);
         meta += ", Hires negative prompt: ";
       }
 
       // ADetailer badge en metadata
       if (p.adetailer && p.adSlots && p.adSlots.length) {
-        meta += ", ADetailer model: "+p.adSlots.join("; ");
+        meta += ", ADetailer model: " + p.adSlots.join("; ");
       }
 
       // Construir texto final en formato CivitAI
       let txt = cleanPrompt;
-      if (neg) txt += "\nNegative prompt: "+neg;
-      txt += "\n"+meta;
+      if (neg) txt += "\nNegative prompt: " + neg;
+      txt += "\n" + meta;
 
-      navigator.clipboard&&navigator.clipboard.writeText(txt).then(()=>notify(T.paramsCopied));
+      navigator.clipboard && navigator.clipboard.writeText(txt).then(() => notify(T.paramsCopied));
     },
 
     // Remezclar: restaura TODOS los recursos del job en la pestaña txt2img
-    remixParams(jobId){
-      const job = S.history.find(j=>j.id===jobId); if(!job) return;
+    remixParams(jobId) {
+      const job = S.history.find(j => j.id === jobId); if (!job) return;
       const p = job.params;
 
       // ── Prompt (sin <lora:...> embebidos) ─────────────────────────
-      S.prompt = (p.prompt||"").replace(/<lora:[^>]+>/g,"").replace(/,\s*,/g,",").trim().replace(/,\s*$/,"");
-      S.neg    = p.neg || "";
+      S.prompt = (p.prompt || "").replace(/<lora:[^>]+>/g, "").replace(/,\s*,/g, ",").trim().replace(/,\s*$/, "");
+      S.neg = p.neg || "";
 
       // ── Sampler / Scheduler / Steps / CFG / Seed ──────────────────
-      if (p.sampler)      S.sampler   = p.sampler;
-      if (p.scheduler)    S.scheduler = p.scheduler;
-      if (p.steps)        S.steps     = p.steps;
-      if (p.cfg != null)  S.cfg       = p.cfg;
+      if (p.sampler) S.sampler = p.sampler;
+      if (p.scheduler) S.scheduler = p.scheduler;
+      if (p.steps) S.steps = p.steps;
+      if (p.cfg != null) S.cfg = p.cfg;
       S.seed = (p.seed && p.seed !== "−1" && p.seed !== "-1") ? String(p.seed) : "";
 
       // ── Tamaño / Aspect Ratio ──────────────────────────────────────
       if (p.w && p.h) {
         S.cw = p.w; S.ch = p.h;
-        const arMatch = Object.entries(AR).find(([,v]) => v.w === p.w && v.h === p.h);
+        const arMatch = Object.entries(AR).find(([, v]) => v.w === p.w && v.h === p.h);
         S.ar = arMatch ? arMatch[0] : "custom";
       }
 
@@ -2458,7 +2741,7 @@ ${rSamplerSection()}
         p.adSlots.forEach((modelName, idx) => {
           if (idx < S.adSlots.length) {
             S.adSlots[idx].enabled = true;
-            S.adSlots[idx].model   = modelName;
+            S.adSlots[idx].model = modelName;
           }
         });
       } else {
@@ -2471,7 +2754,7 @@ ${rSamplerSection()}
       // Los demás campos (rpCalcMode, rpBase, rpRatio, rpFlip, rpTemplate)
       // no se persisten en params → se conservan los actuales de S
       S.rp = !!p.rp;
-      if (p.rpMode)      S.rpMode      = p.rpMode;
+      if (p.rpMode) S.rpMode = p.rpMode;
       if (p.rpSplitting) S.rpSplitting = p.rpSplitting;
 
       // ── Layer Diffusion ────────────────────────────────────────────
@@ -2484,10 +2767,10 @@ ${rSamplerSection()}
       // Notificación con resumen de lo restaurado
       const parts = [];
       if (S.loras_active.length) parts.push(S.loras_active.length + " LoRA(s)");
-      if (S.adetailer)  parts.push("ADetailer");
-      if (S.upscale)    parts.push("Upscale");
-      if (S.rp)         parts.push("RegPrompter");
-      if (S.layerDiff)  parts.push("LayerDiff");
+      if (S.adetailer) parts.push("ADetailer");
+      if (S.upscale) parts.push("Upscale");
+      if (S.rp) parts.push("RegPrompter");
+      if (S.layerDiff) parts.push("LayerDiff");
       const extra = parts.length ? " · " + parts.join(", ") : "";
       notify("🔀 Remezcla cargada" + extra);
     },
@@ -2501,35 +2784,41 @@ ${rSamplerSection()}
           document.body.appendChild(a); a.click();
           setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
         }).catch(() => { window.open(src, "_blank"); });
-      } catch(e) { window.open(src, "_blank"); }
+      } catch (e) { window.open(src, "_blank"); }
     },
 
     // ── Lightbox ─────────────────────────────────
-    lbOpenFromHistory(jobId, idx){
+    lbOpenFromHistory(jobId, idx) {
       let job = S.history.find(j => j.id === jobId);
       if (job && job.images && job.images[idx]) {
         this.lbOpen(job.images, job.images[idx], jobId);
       }
     },
-    dlFromHistory(jobId, idx){
+    dlFromHistory(jobId, idx) {
       let job = S.history.find(j => j.id === jobId);
       if (job && job.images && job.images[idx]) {
         this.dl(job.images[idx], idx);
       }
     },
-    lbOpen(images, activeSrc, jobId){
+    // jobId guardado para remix/copy desde el lightbox
+    _lbJobId: null,
+
+    lbOpen(images, activeSrc, jobId) {
       _lbImages = Array.isArray(images) ? images : [activeSrc];
       _lbIdx = _lbImages.indexOf(activeSrc);
       if (_lbIdx < 0) _lbIdx = 0;
-      
+      this._lbJobId = jobId || null;
+
       const prm = $("muiLBParams");
+      const acts = $("muiLBActions");
       if (prm) {
-        let job = S.history.find(j => j.id === jobId);
+        let job = jobId ? S.history.find(j => j.id === jobId) : null;
         if (job && job.params) {
           const p = job.params;
           const safeP = encodeURIComponent(p.prompt || "");
           const safeN = encodeURIComponent(p.neg || "");
-          
+          const mdl = (p.model || "—").replace(/\.[^/.]+$/, "").slice(0, 28);
+
           let html = `<div class="LB-PRM-BOX">
             <div class="LB-PRM-H">
               <span class="LB-PRM-T">✏️ PROMPT</span>
@@ -2537,53 +2826,199 @@ ${rSamplerSection()}
             </div>
             <div class="LB-PRM-C">${esc(p.prompt)}</div>
           </div>`;
-          
+
           if (p.neg) {
             html += `<div class="LB-PRM-BOX">
               <div class="LB-PRM-H">
-                <span class="LB-PRM-TC">🚫 NEGATIVE PROMPT</span>
+                <span class="LB-PRM-TC">🚫 NEGATIVE</span>
                 <button class="LB-CPY" onclick="navigator.clipboard.writeText(decodeURIComponent('${safeN}')).then(()=>mui.lbMsg('📋 Negativo copiado'))">Copiar</button>
               </div>
               <div class="LB-PRM-C">${esc(p.neg)}</div>
             </div>`;
           }
+
+          // Chips de parámetros
+          html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
+            <span class="CHIP">${esc(mdl)}</span>
+            <span class="CHIP">${p.steps}s · CFG ${p.cfg}</span>
+            <span class="CHIP">${p.w}×${p.h}</span>
+            ${p.sampler ? `<span class="CHIP">${esc(p.sampler)}</span>` : ""}
+            ${p.seed && p.seed !== '-1' && p.seed !== '\u22121' ? `<span class="CHIP HL">🌱 ${p.seed}</span>` : ""}
+            ${p.upscale ? `<span class="CHIP HL">Upscale ×${p.upscaleX}</span>` : ""}
+            ${p.adetailer ? `<span class="CHIP HL">ADetailer</span>` : ""}
+            ${p.loras && p.loras !== "—" ? `<span class="CHIP HL">✨ ${esc(p.loras.slice(0,24))}</span>` : ""}
+          </div>`;
+
           prm.innerHTML = html;
+          if (acts) acts.style.display = "flex";
         } else {
           prm.innerHTML = "";
+          if (acts) acts.style.display = "none";
         }
       }
 
       this._lbRender();
       $("muiLB").classList.add("open");
     },
-    lbMsg(msg){
+
+    // Abrir lightbox desde galería
+    galOpen(jobId, imgIdx) {
+      const job = S.history.find(j => j.id === jobId);
+      if (!job || !job.images || !job.images[imgIdx]) return;
+      this.lbOpen(job.images, job.images[imgIdx], jobId);
+    },
+
+    // Limpiar galería (solo las imágenes, no las tareas en error)
+    galClear() {
+      S.history = S.history.filter(j => j.status !== "done");
+      saveHistoryDB(); rerender();
+      notify("🗑️ Galería limpiada");
+    },
+
+    parseSDInfo(info) {
+      if (!info) return {};
+      const p = { prompt: "", neg: "", sampler: "Euler a", steps: 20, cfg: 7, seed: "-1", count: 1, ts: new Date().toISOString() };
+      try {
+        // El formato de SD es: Prompt \n Negative Prompt: ... \n Params: ...
+        const parts = info.split("\n");
+        p.prompt = parts[0].trim();
+        const negLine = parts.find(l => l.startsWith("Negative prompt: "));
+        if (negLine) p.neg = negLine.replace("Negative prompt: ", "").trim();
+
+        const lastLine = parts[parts.length - 1];
+        if (lastLine.includes("Steps: ")) {
+          const m = (k) => {
+            const match = lastLine.match(new RegExp(k + ": ([^,]+)"));
+            return match ? match[1].trim() : null;
+          };
+          p.steps = parseInt(m("Steps")) || 20;
+          p.sampler = m("Sampler") || "Euler a";
+          p.cfg = parseFloat(m("CFG scale")) || 7;
+          p.seed = m("Seed") || "-1";
+          const size = m("Size");
+          if (size) {
+            const [w, h] = size.split("x");
+            p.w = parseInt(w); p.h = parseInt(h);
+          }
+          const mdl = m("Model"); if (mdl) p.model = mdl;
+        }
+      } catch (e) { console.error("ParseSDInfo error:", e); }
+      return p;
+    },
+
+    // Refrescar galería: escanea el servidor y recarga IndexedDB
+    async galRefresh() {
+      notify("🔍 Escaneando disco del servidor…");
+      let serverJobs = [];
+      try {
+        const res = await (await fetch("/mui/v1/scan_gallery?limit=150")).json();
+        if (res && res.images) {
+          serverJobs = res.images.map(img => {
+            const params = this.parseSDInfo(img.info);
+            params.ts = img.ts; 
+            return {
+              id: "srv-" + img.mtime, // ID basado en mtime para evitar duplicados
+              params,
+              images: [img.src],
+              status: "done",
+              _isServer: true
+            };
+          });
+        }
+      } catch (e) { console.error("Err scan:", e); }
+
+      notify("🔄 Sincronizando historial local…");
+      try {
+        const req = indexedDB.open("mui_db", 1);
+        req.onsuccess = e => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains("store")) { 
+            this._mergeAndRender(serverJobs); return; 
+          }
+          const tx = db.transaction("store", "readonly");
+          const r2 = tx.objectStore("store").get("history");
+          r2.onsuccess = e2 => {
+            const dbHistory = e2.target.result || [];
+            this._mergeAndRender(serverJobs, dbHistory);
+          };
+          r2.onerror = () => this._mergeAndRender(serverJobs);
+        };
+        req.onerror = () => this._mergeAndRender(serverJobs);
+      } catch (_) { this._mergeAndRender(serverJobs); }
+    },
+
+    _mergeAndRender(serverJobs, dbHistory = []) {
+      const memIds = new Set(S.history.map(j => j.id));
+      
+      // 1. Añadir lo del DB si no está en memoria
+      dbHistory.forEach(j => { if (!memIds.has(j.id)) S.history.push(j); });
+
+      // 2. Mezclar lo del Servidor
+      // Prioridad: conservamos los de memoria/DB si tienen la misma imagen (o aproximada)
+      // Pero como el servidor tiene la ruta real /file=..., los añadimos si no existen
+      const allSrcs = new Set();
+      S.history.forEach(j => (j.images||[]).forEach(s => allSrcs.add(s)));
+      
+      serverJobs.forEach(sj => {
+        if (!allSrcs.has(sj.images[0])) {
+          S.history.push(sj);
+        }
+      });
+
+      // Ordenar por timestamp
+      S.history.sort((a, b) => {
+        const ta = a.params?.ts || "";
+        const tb = b.params?.ts || "";
+        return tb.localeCompare(ta);
+      });
+
+      const count = S.history.filter(j => j.status === "done" && j.images?.length).length;
+      notify("✅ Galería lista (" + count + " imágenes)");
+      rerender();
+    },
+
+    // Remezclar desde lightbox
+    lbRemix() {
+      if (!this._lbJobId) return;
+      const job = S.history.find(j => j.id === this._lbJobId);
+      if (!job) return;
+      this.lbClose();
+      this.remixParams(this._lbJobId);
+    },
+
+    // Copiar parámetros desde lightbox
+    lbCopyParams() {
+      if (!this._lbJobId) return;
+      this.copyParams(this._lbJobId);
+    },
+    lbMsg(msg) {
       notify(msg);
     },
-    _lbRender(){
-      const img = $("muiLBImg"); if(!img) return;
-      img.src = _lbImages[_lbIdx]||"";
+    _lbRender() {
+      const img = $("muiLBImg"); if (!img) return;
+      img.src = _lbImages[_lbIdx] || "";
       const prev = $("muiLBPrev"), next = $("muiLBNext");
-      if(prev) prev.disabled = _lbIdx === 0;
-      if(next) next.disabled = _lbIdx === _lbImages.length - 1;
+      if (prev) prev.disabled = _lbIdx === 0;
+      if (next) next.disabled = _lbIdx === _lbImages.length - 1;
     },
-    lbNav(dir){
+    lbNav(dir) {
       _lbIdx = clamp(_lbIdx + dir, 0, _lbImages.length - 1);
       this._lbRender();
     },
-    lbDl(){ if(_lbImages[_lbIdx]) this.dl(_lbImages[_lbIdx], _lbIdx); },
-    lbClose(){ $("muiLB").classList.remove("open"); },
-    fsOpen(src){
+    lbDl() { if (_lbImages[_lbIdx]) this.dl(_lbImages[_lbIdx], _lbIdx); },
+    lbClose() { $("muiLB").classList.remove("open"); },
+    fsOpen(src) {
       const fs = $("muiFS");
       const img = $("muiFSImg");
-      if(fs && img){
+      if (fs && img) {
         img.src = src;
         fs.classList.add("open");
       }
     },
 
     // ── Prompts aleatorios — MEJORA-04: 50+ ideas ──
-    rp(){
-      const ideas=[
+    rp() {
+      const ideas = [
         // Anime/Illustration
         "(anime coloring:1.1),(dramatic lighting:1.1),1girl,clouds,looking at viewer,seductive smile,green eyes,high ponytail,masterpiece",
         "1girl,white sundress,field of lavender,golden hour,dreamy,soft bokeh,detailed,Studio Ghibli style",
@@ -2622,12 +3057,12 @@ ${rSamplerSection()}
         "dragon,mountain peak,storm clouds,lightning,epic scale,high fantasy",
         "futuristic spaceship,hangar bay,crew,hard sci-fi,technical detail,concept art",
       ];
-      S.prompt=ideas[Math.floor(Math.random()*ideas.length)];
-      const ta=$("mTa");if(ta)ta.value=S.prompt;
+      S.prompt = ideas[Math.floor(Math.random() * ideas.length)];
+      const ta = $("mTa"); if (ta) ta.value = S.prompt;
       scheduleSave();
     },
-    cp(){ S.prompt=""; const ta=$("mTa");if(ta)ta.value=""; scheduleSave(); },
-    cpy(){ navigator.clipboard&&navigator.clipboard.writeText(S.prompt).then(()=>notify(T.copied)); },
+    cp() { S.prompt = ""; const ta = $("mTa"); if (ta) ta.value = ""; scheduleSave(); },
+    cpy() { navigator.clipboard && navigator.clipboard.writeText(S.prompt).then(() => notify(T.copied)); },
 
     // ── Paste CivitAI params ──────────────────────
     parseCivitaiText(text) {
@@ -2637,9 +3072,9 @@ ${rSamplerSection()}
       const result = {};
 
       // Detect the metadata block — it starts at a line beginning with "Steps:" or similar known keys
-      const META_KEYS = ["Steps","CFG scale","Sampler","Seed","Size","Model","Version","Model hash",
-        "Hires upscale","Hires upscaler","Denoising strength","Schedule type","Clip skip","ENSD"];
-      const metaRegex = new RegExp("^("+META_KEYS.join("|")+"):", "m");
+      const META_KEYS = ["Steps", "CFG scale", "Sampler", "Seed", "Size", "Model", "Version", "Model hash",
+        "Hires upscale", "Hires upscaler", "Denoising strength", "Schedule type", "Clip skip", "ENSD"];
+      const metaRegex = new RegExp("^(" + META_KEYS.join("|") + "):", "m");
       const metaMatch = metaRegex.exec(text);
 
       let body = text;
@@ -2647,7 +3082,7 @@ ${rSamplerSection()}
       if (metaMatch) {
         // Find which line the metadata starts on
         const metaLineStart = text.lastIndexOf("\n", metaMatch.index) + 1;
-        body    = text.slice(0, metaLineStart).trim();
+        body = text.slice(0, metaLineStart).trim();
         metaStr = text.slice(metaLineStart).trim();
       }
 
@@ -2655,10 +3090,10 @@ ${rSamplerSection()}
       const negIdx = body.search(/\nNegative prompt:/i);
       if (negIdx >= 0) {
         result.prompt = body.slice(0, negIdx).trim();
-        result.neg    = body.slice(negIdx).replace(/^\s*Negative prompt:\s*/i, "").trim();
+        result.neg = body.slice(negIdx).replace(/^\s*Negative prompt:\s*/i, "").trim();
       } else {
         result.prompt = body.trim();
-        result.neg    = null;
+        result.neg = null;
       }
 
       // Parse metadata key:value pairs separated by ", "
@@ -2666,7 +3101,7 @@ ${rSamplerSection()}
       if (metaStr) {
         // Build a regex that matches ", <KEY>:" to find boundaries
         const allKeys = META_KEYS.join("|");
-        const splitRe = new RegExp(",\\s*(?=(?:"+allKeys+"):)", "g");
+        const splitRe = new RegExp(",\\s*(?=(?:" + allKeys + "):)", "g");
         const parts = metaStr.split(splitRe);
         parts.forEach(p => {
           const colon = p.indexOf(":");
@@ -2684,7 +3119,7 @@ ${rSamplerSection()}
         notify(T.pasteNoClip); return;
       }
       navigator.clipboard.readText().then(text => {
-        text = (text||"").trim();
+        text = (text || "").trim();
         if (!text) { notify(T.pasteEmpty); return; }
 
         const p = this.parseCivitaiText(text);
@@ -2780,8 +3215,96 @@ ${rSamplerSection()}
       }).catch(() => notify(T.pasteNoClip));
     },
 
-    clearSaved(){
-      try { localStorage.removeItem("mui_state_v10"); notify("🗑️ Estado guardado borrado"); } catch(e){}
+    clearSaved() {
+      try { localStorage.removeItem("mui_state_v10"); notify("🗑️ Estado guardado borrado"); } catch (e) { }
+    },
+
+    // ── Image Info Tab ────────────────────────────────
+    imgInfoLoad(input) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) { notify(T.onlyImages, true); return; }
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        S._imgInfoB64 = e.target.result;
+        S._imgInfoData = null;
+        S._imgInfoRaw = '';
+        input.value = '';
+        rerender();
+        notify('🔄 Leyendo metadatos…');
+        try {
+          const raw = await readImageInfo(S._imgInfoB64);
+          S._imgInfoRaw = raw;
+          S._imgInfoData = raw ? this.parseCivitaiText(raw) : null;
+          if (!S._imgInfoData || (!S._imgInfoData.prompt && !S._imgInfoData['Steps'])) {
+            S._imgInfoData = null;
+            notify('ℹ️ Sin metadatos SD en esta imagen');
+          } else {
+            notify('✅ Metadatos leídos correctamente');
+          }
+        } catch (e2) {
+          S._imgInfoData = null;
+          notify('❌ Error leyendo metadatos: ' + e2.message, true);
+        }
+        rerender();
+      };
+      reader.onerror = () => notify(T.imgError, true);
+      reader.readAsDataURL(file);
+    },
+    imgInfoClear() {
+      S._imgInfoB64 = null;
+      S._imgInfoData = null;
+      S._imgInfoRaw = '';
+      rerender();
+    },
+    imgInfoSend(mode) {
+      const p = S._imgInfoData;
+      if (!p) { notify('⚠️ Sin metadatos para enviar', true); return; }
+
+      // ── Extraer LoRAs embebidos en el prompt <lora:name:weight> ────────────
+      const rawPrompt = p.prompt || '';
+      const loraMatches = [...rawPrompt.matchAll(/<lora:([^:>]+):([0-9.]+)>/g)];
+      // Prompt limpio sin los tags <lora:...>
+      const cleanPrompt = rawPrompt.replace(/<lora:[^>]+>/g, '').replace(/,\s*,/g, ',').trim().replace(/,\s*$/, '');
+
+      if (p.prompt)           S.prompt    = cleanPrompt;
+      if (p.neg)              S.neg       = p.neg;
+      if (p['Steps'])       { const v = parseInt(p['Steps']);          if (!isNaN(v)) S.steps   = clamp(v, 1, 150); }
+      if (p['CFG scale'])   { const v = parseFloat(p['CFG scale']);    if (!isNaN(v)) S.cfg     = clamp(v, 0, 30);  }
+      if (p['Sampler'])       S.sampler   = p['Sampler'];
+      if (p['Schedule type']) S.scheduler = p['Schedule type'];
+      if (p['Seed'])          S.seed      = p['Seed'];
+      if (p['Size']) {
+        const m2 = p['Size'].match(/^(\d+)[xX×](\d+)$/);
+        if (m2) { S.cw = snap8(parseInt(m2[1])); S.ch = snap8(parseInt(m2[2])); S.ar = 'custom'; }
+      }
+      if (p['Hires upscale'])  { const v = parseFloat(p['Hires upscale']); if (!isNaN(v) && v > 1) { S.upscale = true; S.upscaleX = v; } }
+      if (p['Hires upscaler']) S.upscaler = p['Hires upscaler'];
+
+      // ── Poblar S.loras_active desde los tags extraídos ─────────────────────
+      if (loraMatches.length > 0) {
+        S.loras_active = [];
+        loraMatches.forEach(m => {
+          const name   = m[1].trim();
+          const weight = parseFloat(m[2]) || 1.0;
+          // Buscar el LoRA en la lista cargada (por nombre o alias)
+          const found = S.loras.find(l => l.n === name || l.a === name || l.n.includes(name) || name.includes(l.n));
+          S.loras_active.push({ n: found ? found.n : name, w: weight });
+        });
+        const count = loraMatches.length;
+        notify('✨ ' + count + ' LoRA' + (count > 1 ? 's' : '') + ' cargado' + (count > 1 ? 's' : '') + ' desde metadatos');
+      }
+
+      if (mode === 'img2img' && S._imgInfoB64) {
+        S.i2iImageB64 = S._imgInfoB64;
+        S.i2iPrompt   = cleanPrompt;
+        S.i2iNeg      = p.neg || S.neg;
+      }
+
+      scheduleSave();
+      this.tab(mode === 'img2img' ? 'img2img' : 'txt2img');
+      const loraInfo = loraMatches.length ? ' + ' + loraMatches.length + ' LoRA(s)' : '';
+      notify('✅ Parámetros enviados a ' + (mode === 'img2img' ? 'Img2Img' : 'Text2Img') + loraInfo);
     },
   };
 
@@ -2807,18 +3330,201 @@ ${rSamplerSection()}
     }).join("") || '<div style="color:#6b7280;text-align:center;padding:16px;font-size:12px">Sin modelos CN</div>';
   }
 
+  /* ══ EXTENSION DETECTION ═════════════════════
+     Detecta extensiones instaladas via DOM
+     fingerprinting. Sin dependencias externas.
+  ═════════════════════════════════════════════ */
+  async function detectExtensions() {
+    // TagComplete: busca su contenedor o API global
+    S._tacInstalled = !!(window.TAC_CFG !== undefined
+      || document.getElementById('tac_extension_container')
+      || document.getElementById('tac_results_popup')
+      || document.querySelector('#txt2img_prompt .autocompleteResults')
+    );
+    // sd-image-info: busca su tab de Gradio o botón
+    S._imgInfoInstalled = !!(document.getElementById('tab_sd_image_info')
+      || document.querySelector('#image_info_tab')
+      || [...document.querySelectorAll('.tab-nav button, #tabs button')]
+          .some(b => /image.?info/i.test(b.textContent))
+    );
+  }
+
+  /* ══ TAG COMPLETE BRIDGE ═════════════════════
+     Redirige el input de nuestros textareas al
+     textarea de Gradio para que TAC lo procese,
+     y reposiciona el popup dentro del overlay.
+  ═════════════════════════════════════════════ */
+  let _tacObserver = null;
+
+  function attachTACMirrors() {
+    if (!S._tacInstalled) return;
+    const pairs = [
+      ['mTa',    '#txt2img_prompt textarea'],
+      ['mNg',    '#txt2img_neg_prompt textarea'],
+      ['i2iPTa', '#img2img_prompt textarea'],
+    ];
+    pairs.forEach(([ourId, gradioSel]) => {
+      const ta = document.getElementById(ourId);
+      if (!ta || ta._tacMirrorSet) return;
+      const gradioTa = document.querySelector(gradioSel);
+      if (!gradioTa) return;
+      ta._tacMirrorSet = true;
+      ta.addEventListener('input', () => {
+        try {
+          const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+          if (setter) setter.call(gradioTa, ta.value);
+          else gradioTa.value = ta.value;
+          gradioTa.dispatchEvent(new Event('input', { bubbles: true }));
+        } catch (e) { }
+      });
+    });
+  }
+
+  function setupTACBridge() {
+    if (!S._tacInstalled || _tacObserver) return;
+    const TAC_SELS = ['#tac_results_popup', '.autocompleteResults', '.tac-popup'];
+    function reposTAC() {
+      let popup = null;
+      for (const sel of TAC_SELS) {
+        const el = document.querySelector(sel);
+        if (el && el.offsetParent !== null && el.textContent.trim()) { popup = el; break; }
+      }
+      if (!popup) return;
+      const ov = document.getElementById('muiOv');
+      if (!ov) return;
+      const active = document.activeElement;
+      if (!active || !ov.contains(active)) return;
+      const rect = active.getBoundingClientRect();
+      popup.style.setProperty('position', 'fixed', 'important');
+      popup.style.setProperty('z-index', '2147483900', 'important');
+      popup.style.setProperty('top', (rect.bottom + 4) + 'px', 'important');
+      popup.style.setProperty('left', rect.left + 'px', 'important');
+      popup.style.setProperty('width', rect.width + 'px', 'important');
+      popup.style.setProperty('max-height', '220px', 'important');
+      popup.style.setProperty('overflow-y', 'auto', 'important');
+      popup.style.setProperty('background', '#13132a', 'important');
+      popup.style.setProperty('border', '1px solid #2d2d45', 'important');
+      popup.style.setProperty('border-radius', '9px', 'important');
+      popup.style.setProperty('font-family', "'Sora',sans-serif", 'important');
+    }
+    _tacObserver = new MutationObserver(reposTAC);
+    _tacObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+    attachTACMirrors();
+  }
+
+  /* ══ IMAGE INFO TAB ══════════════════════════
+     Lee metadatos de una imagen con el endpoint
+     nativo /sdapi/v1/png-info (siempre disponible)
+     y permite enviar los parámetros a txt2img
+     o img2img.
+  ═════════════════════════════════════════════ */
+  async function readImageInfo(dataUrl) {
+    try {
+      const b64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+      const res = await POST('/sdapi/v1/png-info', { image: 'data:image/png;base64,' + b64 });
+      return (res && (res.info || res.parameters || res.items?.parameters)) || '';
+    } catch (e) { return ''; }
+  }
+
+  function rImageInfo() {
+    const hasImg = !!S._imgInfoB64;
+    const info   = S._imgInfoData;
+    const badgeCls = S._imgInfoInstalled ? 'ok' : 'warn';
+    const badgeTxt = S._imgInfoInstalled
+      ? '✅ sd-image-info instalado'
+      : '⚠️ Usando /sdapi/v1/png-info (nativo)';
+
+    const dropContent = hasImg
+      ? `<img src="${S._imgInfoB64}" style="max-width:100%;max-height:200px;object-fit:contain;border-radius:9px">
+         <div class="I2I-DROP-OVR">
+           <button style="background:rgba(239,68,68,.85);border:none;border-radius:6px;color:#fff;padding:8px 18px;font-size:13px;cursor:pointer"
+             onclick="event.preventDefault();event.stopPropagation();mui.imgInfoClear()">✕ Quitar</button>
+         </div>`
+      : `<div style="text-align:center;padding:24px">
+           <div style="font-size:44px;margin-bottom:10px">🔍</div>
+           <div style="color:#9ca3af;font-size:13px;font-weight:600">Toca para subir imagen</div>
+           <div style="font-size:11px;color:#4b5563;margin-top:5px">PNG · JPG · WebP con metadatos SD</div>
+         </div>`;
+
+    let infoBlock = '';
+    if (hasImg && info) {
+      const safeP = encodeURIComponent(info.prompt || '');
+      const safeN = encodeURIComponent(info.neg    || '');
+
+      if (info.prompt) {
+        infoBlock += `<div class="IIT-INFO-BOX">
+          <div class="IIT-INFO-H">
+            <span class="IIT-INFO-T pos">✏️ PROMPT</span>
+            <button class="IIT-CPY" onclick="navigator.clipboard.writeText(decodeURIComponent('${safeP}')).then(()=>mui.lbMsg('📋 Prompt copiado'))">Copiar</button>
+          </div>
+          <div class="IIT-INFO-C">${esc(info.prompt)}</div>
+        </div>`;
+      }
+      if (info.neg) {
+        infoBlock += `<div class="IIT-INFO-BOX">
+          <div class="IIT-INFO-H">
+            <span class="IIT-INFO-T neg">🚫 NEGATIVE</span>
+            <button class="IIT-CPY" onclick="navigator.clipboard.writeText(decodeURIComponent('${safeN}')).then(()=>mui.lbMsg('📋 Negativo copiado'))">Copiar</button>
+          </div>
+          <div class="IIT-INFO-C">${esc(info.neg)}</div>
+        </div>`;
+      }
+      const paramKeys = [
+        ['Steps','⚡ Steps'], ['CFG scale','🎯 CFG'], ['Sampler','🎲 Sampler'],
+        ['Schedule type','📅 Scheduler'], ['Seed','🌱 Seed'], ['Size','📐 Size'],
+        ['Model','🎨 Model'], ['Model hash','#️⃣ Hash'],
+        ['Hires upscale','🔍 Hires ×'], ['Hires upscaler','🔍 Upscaler'],
+        ['Denoising strength','〰️ Denoising'],
+      ];
+      const rows = paramKeys.filter(([k]) => info[k])
+        .map(([k, lbl]) => `<div class="IIT-PR"><span class="IIT-PK">${lbl}</span><span class="IIT-PV">${esc(info[k])}</span></div>`)
+        .join('');
+      if (rows) {
+        infoBlock += `<div class="IIT-INFO-BOX">
+          <div class="IIT-INFO-H"><span class="IIT-INFO-T par">⚙️ PARÁMETROS</span></div>
+          <div class="IIT-PARAMS">${rows}</div>
+        </div>`;
+      }
+      infoBlock += `<div class="IIT-SEND">
+        <button class="IIT-SEND-BTN IIT-SEND-T2I" onclick="mui.imgInfoSend('txt2img')">📝 Enviar a Text2Img</button>
+        <button class="IIT-SEND-BTN IIT-SEND-I2I" onclick="mui.imgInfoSend('img2img')">🖼️ Enviar a Img2Img</button>
+      </div>`;
+    } else if (hasImg && !info) {
+      infoBlock = `<div style="text-align:center;padding:20px;color:#6b7280">
+        <div style="font-size:28px;margin-bottom:8px">⏳</div>
+        <div style="font-size:13px">Procesando metadatos…</div>
+      </div>`;
+    }
+
+    const emptyNote = !hasImg ? `<div class="C">
+      <div style="text-align:center;padding:36px 20px;color:#4b5563">
+        <div style="font-size:42px;margin-bottom:10px">🔍</div>
+        <div style="color:#9ca3af;font-size:14px;font-weight:600;margin-bottom:6px">Sin imagen cargada</div>
+        <div style="font-size:12px">Sube una imagen PNG generada con SD para ver y reutilizar sus parámetros</div>
+      </div>
+    </div>` : '';
+
+    return `<div class="C">
+  <div class="CT">🔍 Información de Imagen</div>
+  <div class="IIT-BADGE ${badgeCls}">${badgeTxt}</div>
+  <label for="imgInfoFileInp" class="I2I-DROP ${hasImg ? 'has-img' : ''}" style="min-height:${hasImg ? '160px' : '140px'}">
+    ${dropContent}
+  </label>
+</div>${hasImg ? `<div class="C">${infoBlock}</div>` : emptyNote}`;
+  }
+
   /* ══ INIT ════════════════════════════════════ */
   function init() {
     loadState(); // MEJORA-03: restaurar estado persistido
     loadHistoryDB();
-    const st=document.createElement("style"); st.id="muiCSS"; st.textContent=CSS; document.head.appendChild(st);
-    const d=document.createElement("div"); d.id="muiRoot"; d.innerHTML=HTML;
+    const st = document.createElement("style"); st.id = "muiCSS"; st.textContent = CSS; document.head.appendChild(st);
+    const d = document.createElement("div"); d.id = "muiRoot"; d.innerHTML = HTML;
     document.documentElement.appendChild(d);
 
-    const rsz=()=>{ if($("muiOv")?.classList.contains("open")) applySize(); };
-    if(window.visualViewport) window.visualViewport.addEventListener("resize",rsz);
-    window.addEventListener("orientationchange",()=>setTimeout(rsz,150));
-    window.addEventListener("resize",rsz);
+    const rsz = () => { if ($("muiOv")?.classList.contains("open")) applySize(); };
+    if (window.visualViewport) window.visualViewport.addEventListener("resize", rsz);
+    window.addEventListener("orientationchange", () => setTimeout(rsz, 150));
+    window.addEventListener("resize", rsz);
 
     // Atajos de teclado: Escape cierra lightbox o overlay
     document.addEventListener("keydown", e => {
@@ -2828,15 +3534,17 @@ ${rSamplerSection()}
       }
       // Flechas navegan el lightbox
       if ($("muiLB")?.classList.contains("open")) {
-        if (e.key === "ArrowLeft")  mui.lbNav(-1);
+        if (e.key === "ArrowLeft") mui.lbNav(-1);
         if (e.key === "ArrowRight") mui.lbNav(1);
       }
     });
 
-    if(MOBILE) setTimeout(()=>{ mui.open(); const f=$("muiFab");if(f)f.classList.add("hidden"); },700);
-    console.log("[SD Mobile UI v10] ✓ mobile:"+MOBILE+" zoom:"+getBodyZoom().toFixed(3));
+    if (MOBILE) setTimeout(() => { mui.open(); const f = $("muiFab"); if (f) f.classList.add("hidden"); }, 700);
+    // Detectar extensiones después de que Gradio termine de cargar
+    setTimeout(() => detectExtensions(), 2000);
+    console.log("[SD Mobile UI v10] ✓ mobile:" + MOBILE + " zoom:" + getBodyZoom().toFixed(3));
   }
 
-  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init);
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
-})();
+})(); 
