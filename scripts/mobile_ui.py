@@ -75,7 +75,7 @@ def on_app_started(demo, app: FastAPI):
     except Exception: pass
 
     @app.get("/mui/v1/scan_gallery")
-    async def api_scan_gallery(limit: int = 100):
+    async def api_scan_gallery(limit: int = 50):
         try:
             files = scan_folders(limit)
             results = []

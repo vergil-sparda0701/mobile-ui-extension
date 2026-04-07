@@ -831,7 +831,7 @@
           args: [
             true,
             ...enabledSlots.map(s => ({
-              ad_model: s.model,
+              ad_model: mui.validateAdModel(s.model),
               ad_confidence: s.conf,
               ad_denoising_strength: s.dn,
               ad_prompt: s.prompt || "",
@@ -1087,7 +1087,7 @@
           args: [
             true,
             ...enabledSlots.map(s => ({
-              ad_model: s.model,
+              ad_model: mui.validateAdModel(s.model),
               ad_confidence: s.conf,
               ad_denoising_strength: s.dn,
               ad_prompt: s.prompt || "",
@@ -1160,6 +1160,69 @@
       updateGenBtn(); updateTaskCard(jobId);
       scheduleSave(); saveHistoryDB();
     }
+  }
+
+  /* ══ RECOVERY ════════════════════════════════
+     Maneja situaciones donde el túnel (zrok/ngrok)
+     se cae pero el servidor sigue trabajando.
+  ═════════════════════════════════════════════ */
+  async function recoverGeneration(jobId) {
+    const job = S.history.find(j => j.id === jobId);
+    if (!job) return;
+    job.status = "recovering";
+    notify("⏳ El túnel falló, intentando recuperar generación…");
+
+    let attempts = 0;
+    const iv = setInterval(async () => {
+      attempts++;
+      try {
+        const p = await GET("/sdapi/v1/progress?skip_current_image=false");
+        if (p && p.progress > 0) {
+          const pct = Math.round(p.progress * 100);
+          job.progress = pct;
+          job.status = "generating";
+          if (p.current_image) S.liveImg = "data:image/png;base64," + p.current_image;
+          updateTaskCard(jobId);
+        } else if (attempts > 3) {
+          // Si progress es 0 después de varios intentos, puede que haya terminado
+          clearInterval(iv);
+          await finalizeRecovery(jobId);
+        }
+      } catch (e) {
+        if (attempts > 12) { // 1 minuto fallando
+          clearInterval(iv);
+          job.status = "error"; job.error = "No se pudo recuperar del fallo del túnel.";
+          updateTaskCard(jobId); S.busy = false; updateGenBtn();
+        }
+      }
+    }, 5000);
+  }
+
+  async function finalizeRecovery(jobId) {
+    const job = S.history.find(j => j.id === jobId);
+    if (!job) return;
+    notify("🔍 Generación terminada, buscando imagen final…");
+    
+    // 1. Intentar refrescar la galería para ver si el servidor ya guardó el archivo
+    await mui.galRefresh(); 
+    
+    // 2. Buscar en S.history si hay una imagen reciente que coincida con el prompt
+    // galRefresh ya unificó lo del servidor
+    const recovered = S.history.find(j => j.status === "done" && j.params && j.params.prompt === job.params.prompt);
+    
+    if (recovered) {
+      job.images = recovered.images;
+      job.status = "done";
+      job.progress = 100;
+      notify("✅ ¡Generación recuperada con éxito!");
+    } else {
+      job.status = "error";
+      job.error = "Sincronización fallida tras el timeout.";
+    }
+    
+    S.busy = false; S.progress = 0;
+    updateGenBtn(); updateTaskCard(jobId);
+    saveHistoryDB();
   }
 
   /* ══ STOP GENERATION ════════════════════════
@@ -2181,12 +2244,21 @@ ${rSamplerSection()}
     const isGen = status === "generating", isDone = status === "done";
     const pct = progress || 0;
     const isI2I = params.mode === "img2img";
+    
+    // Sanitize parameters to avoid 'undefined' display (FIX v24)
+    const cw = params.w || S.cw || 512;
+    const ch = params.h || S.ch || 512;
+    const cs = params.steps || S.steps || 20;
+    const cc = params.cfg || S.cfg || 7;
+    const csm = params.sampler || S.sampler || "Euler a";
+    const bcount = params.count || 1;
+
     const chips = [
-      `<span class="CHIP">${params.w}×${params.h}</span>`,
-      `<span class="CHIP">${esc(params.sampler)}</span>`,
-      `<span class="CHIP">${params.steps}s</span>`,
-      `<span class="CHIP HL">CFG ${params.cfg}</span>`,
-      `<span class="CHIP">×${params.count}</span>`,
+      `<span class="CHIP">${cw}×${ch}</span>`,
+      `<span class="CHIP">${esc(csm)}</span>`,
+      `<span class="CHIP">${cs}s</span>`,
+      `<span class="CHIP HL">CFG ${cc}</span>`,
+      `<span class="CHIP">×${bcount}</span>`,
     ];
     if (isI2I) chips.push(`<span class="CHIP HL">Img2Img dn:${params.dn}</span>`);
     if (params.upscale) chips.push(`<span class="CHIP HL">Upscale ×${params.upscaleX}</span>`);
@@ -2497,6 +2569,25 @@ ${rSamplerSection()}
     adTab(i) { S.adTab = i; const el = $("cfgAD"); if (el) el.innerHTML = rADetailer(); },
 
     // ── Checkpoint ──────────────────────────────
+    // Validar modelo de ADetailer (fuzzy match)
+    validateAdModel(target) {
+      if (!target || target === "None") return S.adModels[0] || "None";
+      if (S.adModels.includes(target)) return target;
+
+      // Fuzzy match: buscar por palabras clave (face, hand, person, etc)
+      const tLow = target.toLowerCase();
+      const keywords = ["face", "hand", "person", "body", "eye"];
+      const hitKey = keywords.find(k => tLow.includes(k));
+
+      if (hitKey) {
+        const found = S.adModels.find(m => m.toLowerCase().includes(hitKey));
+        if (found) return found;
+      }
+
+      // Si no hay match, devolver el primero disponible que no sea None
+      return S.adModels.find(m => m !== "None") || S.adModels[0] || "None";
+    },
+
     om() { const s = $("mdlS"); if (s) s.value = ""; fillMdl(""); $("mdlM").classList.add("open"); },
     fm(v) { fillMdl(v); },
     async pm(t) {
@@ -2798,13 +2889,17 @@ ${rSamplerSection()}
       S.adetailer = !!(p.adetailer || p["ADetailer model"]);
       if (S.adetailer) {
         const adModelRaw = p.adSlots || p["ADetailer model"];
-        const activeModels = Array.isArray(adModelRaw) ? adModelRaw : (adModelRaw ? adModelRaw.split(";").map(s=>s.trim()) : []);
-        
+        const activeModels = Array.isArray(adModelRaw) ? adModelRaw : (adModelRaw ? adModelRaw.split(";").map(s => s.trim()) : []);
+
         S.adSlots.forEach(slot => { slot.enabled = false; });
         activeModels.forEach((modelName, idx) => {
           if (idx < S.adSlots.length) {
+            const validModel = this.validateAdModel(modelName);
             S.adSlots[idx].enabled = true;
-            S.adSlots[idx].model = modelName;
+            S.adSlots[idx].model = validModel;
+            if (validModel !== modelName) {
+              notify(`⚠️ ADetailer: '${modelName.slice(0, 15)}' no encontrado, usando '${validModel.slice(0, 15)}'`, true);
+            }
           }
         });
       }
@@ -2926,7 +3021,7 @@ ${rSamplerSection()}
       notify("🔍 Escaneando disco del servidor…");
       let serverJobs = [];
       try {
-        const res = await (await fetch("/mui/v1/scan_gallery?limit=150")).json();
+        const res = await (await fetch("/mui/v1/scan_gallery?limit=50")).json();
         if (res && res.images) {
           serverJobs = res.images.map(img => {
             const params = this.parseCivitaiText(img.info); // Usar el parser robusto
@@ -3025,6 +3120,13 @@ ${rSamplerSection()}
           const safeP = encodeURIComponent(p.prompt || "");
           const safeN = encodeURIComponent(p.neg || "");
           const mdl = (p.model || "—").replace(/\.[^/.]+$/, "").slice(0, 28);
+          
+          // Fallbacks for lightbox too
+          const lw = p.w || S.cw || 512;
+          const lh = p.h || S.ch || 512;
+          const ls = p.steps || S.steps || 20;
+          const lc = p.cfg || S.cfg || 7;
+          const lsm = p.sampler || S.sampler || "Euler a";
 
           let html = `<div class="LB-PRM-BOX">
             <div class="LB-PRM-H">
@@ -3046,9 +3148,9 @@ ${rSamplerSection()}
 
           html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
             <span class="CHIP">${esc(mdl)}</span>
-            <span class="CHIP">${p.steps}s · CFG ${p.cfg}</span>
-            <span class="CHIP">${p.w}×${p.h}</span>
-            ${p.sampler ? `<span class="CHIP">${esc(p.sampler)}</span>` : ""}
+            <span class="CHIP">${ls}s · CFG ${lc}</span>
+            <span class="CHIP">${lw}×${lh}</span>
+            <span class="CHIP">${esc(lsm)}</span>
             ${p.seed && p.seed !== '-1' && p.seed !== '\u22121' ? `<span class="CHIP HL">🌱 ${p.seed}</span>` : ""}
             ${p.upscale ? `<span class="CHIP HL">Upscale ×${p.upscaleX}</span>` : ""}
             ${p.adetailer ? `<span class="CHIP HL">ADetailer</span>` : ""}

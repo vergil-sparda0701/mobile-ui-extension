@@ -1,77 +1,45 @@
-# 📱 Mobile UI Extension
+# 📱 Mobile UI Extension — Full SD Studio
 
 ### Stable Diffusion WebUI (Forge / Automatic1111)
 
-A mobile interface inspired by **tensor.art** for SD WebUI Forge and AUTOMATIC1111.
+A professional, high-performance mobile interface inspired by **tensor.art** for Stable Diffusion WebUI. Designed for seamless generation, history management, and model optimization directly from your smartphone.
 
 ---
 
-## ✨ Features
+## ✨ Features (Latest Version)
 
-* 📱 **Full mobile interface** — Dark design inspired by tensor.art
-* 🎨 **Text2Img** — Positive/negative prompt with toolbar (random, clear, copy)
-* 🖼️ **Img2Img** — Image upload for variations
-* ⚙️ **Settings** — Aspect ratio (2:3, 3:2, 1:1, custom), steps, CFG, seed, sampler
-* 🔧 **Models** — Checkpoint selector with hot swapping
-* ✨ **LoRA** — Selector with slider weight control
-* 🔄 **Real-time progress** — Progress bar during generation
-* 🖼️ **Results gallery** — View generated images
-* 🔍 **Upscale / ADetailer / Layer Diffusion** — Quick toggles
-* 🎲 **Random prompt** — Built-in prompt ideas
-
----
-
-## 🚀 Installation
-
-### Method 1 — Install from URL (recommended)
-
-1. Open SD WebUI
-2. Go to **Extensions** → **Install from URL**
-3. Paste the repository URL
-4. Click **Install**
-5. Restart the WebUI
-
-### Method 2 — Manual
-
-1. Download or clone this repository
-2. Copy the `mobile-ui-extension` folder to:
-
-   ```
-   stable-diffusion-webui/extensions/mobile-ui-extension/
-   ```
-3. Restart the WebUI
+* 📱 **Premium Mobile Design** — Dark mode, glassmorphism, and smooth animations optimized for touch.
+* 🎨 **Text2Img & Img2Img** — Full support for both generation modes with persistent history.
+* 🖼️ **Advanced Gallery & Server Scan** — Scan your internal server outputs and synchronize your entire history.
+* 🔍 **Smart Lightbox** — Premium image viewer with full-history navigation (arrows) and real-time metadata display.
+* 🔀 **Total Remix** — Restore *everything* from a historical image: Checkpoint, LoRAs (even if hidden in prompt), ADetailer slots, and Hires fix.
+* 🛡️ **ADetailer Robustness** — Fuzzy model matching. If a model (like face_yolov9c) is missing, it automatically selects the best available version.
+* 🌐 **Civitai Vergil Mod Integration** — Sync covers, trigger words, and scan models directly from the mobile UI with real-time logs.
+* 🧩 **Deep Integration** — Full support for:
+    * **ADetailer** (Multiple slots)
+    * **ControlNet** (Unit 0, 1, 2 with preprocessor run)
+    * **Regional Prompter** (Matrix/Mask/Prompt modes)
+    * **Layer Diffusion** (Foreground/Background/Blended)
+    * **Hires.fix** (Custom upscalers and denoising)
 
 ---
 
-## 📁 Repository Structure
+## 🎮 Recommended Usage
 
-```
-mobile-ui-extension/
-├── scripts/
-│   └── mobile_ui.py          # Main script (Python/Gradio)
-├── javascript/
-│   └── mobile_ui.js          # Full UI (auto-injected)
-└── README.md
-```
+### 🔄 The "Perfect Remix" Workflow
+1.  Go to the **🖼️ Galería** tab and click 🔄 to sync your server images.
+2.  Open any image in the **Lightbox**.
+3.  Click **🔀 Remezclar**. All parameters, including LoRAs and ADetailer models, will be restored.
+4.  If a LoRA was used in the prompt but not in the metadata, the UI will detect it automatically!
 
----
+### 🏺 Civitai Synchronization
+1.  If you downloaded new models and they don't have covers or trigger words, go to the **Extra** tab.
+2.  Click **🔍 Scan Metadata**.
+3.  Monitor the **Live Logs** console to see progress in real-time.
 
-## 🎮 Usage
-
-1. After installation, you will see a **📱 Mobile UI** button in the bottom-right corner
-2. Click it to open the mobile interface in full screen
-3. Enter your prompt, adjust settings, and press **⚡ Generate**
-4. Images will appear in the results gallery
-
----
-
-## ⚙️ Compatibility
-
-| WebUI               | Status           |
-| ------------------- | ---------------- |
-| Forge               | ✅ Tested         |
-| AUTOMATIC1111 v1.9+ | ✅ Compatible     |
-| ComfyUI             | ❌ Not compatible |
+### 👥 ADetailer Optimization
+*   Use the **AD-TABS** to configure up to 4 simultaneous detectors (e.g., Face + Body).
+*   The UI handles model mismatches: it will find the closest version of a detector if you switch servers.
 
 ---
 
@@ -81,6 +49,31 @@ mobile-ui-extension/
 * Uses the **A1111 REST API** (`/sdapi/v1/`)
 * Font: [Sora](https://fonts.google.com/specimen/Sora) via Google Fonts
 * No React, no bundler — runs directly
+
+
+---
+
+## 🚀 Installation
+
+### Method 1 — Install from URL (Recommended)
+1. Open SD WebUI.
+2. Go to **Extensions** → **Install from URL**.
+3. Paste: `https://github.com/vergil-sparda0701/mobile-ui-extension`
+4. Click **Install** and **Apply and Restart UI**.
+
+### Method 2 — Manual
+1. Clone the repo into `extensions/mobile-ui-extension/`.
+2. Restart the WebUI.
+
+---
+
+## ⚙️ Compatibility
+
+| WebUI               | Status           |
+| ------------------- | ---------------- |
+| Forge               | ✅ Fully Tested   |
+| AUTOMATIC1111 v1.9+ | ✅ Compatible     |
+| ComfyUI             | ❌ Not compatible |
 
 ---
 
@@ -99,10 +92,6 @@ mobile-ui-extension/
 
 ---
 
-*Developed as a Stable Diffusion WebUI extension*
-
----
-
 ## Preview
 
 ![UI Preview](./Mobile_UI_shots/screen1.jpg)
@@ -116,7 +105,10 @@ mobile-ui-extension/
 
 If this extension saves you time and you'd like to support its development, a coffee is always appreciated!
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/danielgs20019)
-
 Every contribution helps keep the project maintained and motivates new features. Thank you! 🙏
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/danielgs20019)
+
+---
+
+*Developed as a premium Stable Diffusion WebUI extension for the mobile community.*
