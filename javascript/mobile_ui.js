@@ -2294,7 +2294,16 @@ ${rSamplerSection()}
     <div>💾 Estado guardado: <span style="color:#e5e7eb">${stateSize > 0 ? (stateSize / 1024).toFixed(1) + " KB" : "—"}</span></div>
     <div>⏱️ Datos cargados: <span style="color:#e5e7eb">${S._dataLoaded ? new Date(S._dataTs).toLocaleTimeString("es") : "—"}</span></div>
   </div>
-  <div class="ABR" style="margin-top:10px">
+  <div class="CT" style="margin-top:20px">Civitai Sync (Vergil Mod)</div>
+  <div style="font-size:12px;color:#6b7280;margin-bottom:10px">
+    Sincroniza metadatos y portadas faltantes desde Civitai.
+  </div>
+  <div class="ABR">
+    <button class="AB" onclick="mui.civitaiScan()" style="background:#7c3aed22;border-color:#7c3aed66;color:#a78bfa">🔍 Escanear modelos ahora</button>
+  </div>
+  <div id="civiLog" style="margin-top:10px;background:#111827;border:1px solid #1f2937;border-radius:6px;padding:8px;font-family:monospace;font-size:10px;color:#9ca3af;max-height:120px;overflow-y:auto;white-space:pre-wrap;display:none;text-align:left"></div>
+
+  <div class="ABR" style="margin-top:20px">
     <button class="AB" onclick="mui.refresh(true)">🔄 Recargar forzado</button>
     <button class="AB" onclick="S.history=[];mui.tab('tasks');saveHistoryDB()" style="color:#f87171;border-color:#ef444433">🗑️ Limpiar historial</button>
   </div>
@@ -2430,6 +2439,46 @@ ${rSamplerSection()}
       const b = $("t-" + t); if (b) b.classList.add("on");
       rerender();
       updateGenBtn();
+    },
+
+    // ── Civitai Integration ──────────────────────
+    async civitaiScan() {
+      notify("⏳ Iniciando escaneo en el servidor...");
+      try {
+        const r = await fetch("/mui/v1/civitai/scan", { method: "POST" });
+        if (r.ok) {
+          const log = document.getElementById("civiLog");
+          if (log) {
+            log.style.display = "block";
+            log.textContent = "[Iniciando...]";
+          }
+          this._startCiviPolling();
+        } else {
+          const err = await r.json();
+          notify("❌ " + (err.error || "Error al iniciar escaneo"), true);
+        }
+      } catch (e) { notify("❌ Error de conexión", true); }
+    },
+
+    _civiIvan: null,
+    _startCiviPolling() {
+      clearInterval(this._civiIvan);
+      this._civiIvan = setInterval(async () => {
+        try {
+          const r = await fetch("/mui/v1/civitai/log");
+          if (!r.ok) return;
+          const d = await r.json();
+          const log = document.getElementById("civiLog");
+          if (log && d.log) {
+            log.textContent = d.log;
+            if (d.log.includes("finalizado") || d.log.includes("complete")) {
+              clearInterval(this._civiIvan);
+              notify("✅ Escaneo de Civitai finalizado");
+              this.refresh(); // Recargar modelos para ver cambios
+            }
+          }
+        } catch (e) { clearInterval(this._civiIvan); }
+      }, 3000);
     },
     ar(k) { S.ar = k; scheduleSave(); rerender(); },
     st(v) { S.steps = clamp(parseInt(v) || 20, 1, 150); const r = $("stR"), i = $("stI"); if (r) { r.value = S.steps; r.style.setProperty("--p", (S.steps / 150 * 100) + "%"); } if (i) i.value = S.steps; scheduleSave(); },
@@ -2689,8 +2738,9 @@ ${rSamplerSection()}
       const job = S.history.find(j => j.id === jobId); if (!job) return;
       const p = job.params;
 
-      // ── Prompt (sin <lora:...> embebidos) ─────────────────────────
-      S.prompt = (p.prompt || "").replace(/<lora:[^>]+>/g, "").replace(/,\s*,/g, ",").trim().replace(/,\s*$/, "");
+      // ── Prompt (limpiar tags <lora:...> embebidos para S.prompt) ─────────────────
+      const rawPrompt = p.prompt || "";
+      S.prompt = rawPrompt.replace(/<lora:[^>]+>/g, "").replace(/,\s*,/g, ",").trim().replace(/,\s*$/, "");
       S.neg = p.neg || "";
 
       // ── Sampler / Scheduler / Steps / CFG / Seed ──────────────────
@@ -2702,18 +2752,22 @@ ${rSamplerSection()}
 
       // ── Tamaño / Aspect Ratio ──────────────────────────────────────
       if (p.w && p.h) {
-        S.cw = p.w; S.ch = p.h;
-        const arMatch = Object.entries(AR).find(([, v]) => v.w === p.w && v.h === p.h);
+        S.cw = snap8(p.w); S.ch = snap8(p.h);
+        const arMatch = Object.entries(AR).find(([, v]) => v.w === S.cw && v.h === S.ch);
         S.ar = arMatch ? arMatch[0] : "custom";
       }
 
-      // ── Modelo ─────────────────────────────────────────────────────
-      if (p.model) S.model = p.model;
+      // ── Modelo (Checkpoint) ─────────────────────────────────────────
+      // Si el modelo es solo un nombre (de metadatos PNG), intentamos buscarlo en S.models
+      if (p.model) {
+        const found = S.models.find(m => m.t === p.model || m.t.includes(p.model) || p.model.includes(m.t));
+        if (found) S.model = found.t;
+        else notify("⚠️ Modelo '" + p.model.slice(0,20) + "' no encontrado, usando actual.", true);
+      }
 
-      // ── LoRAs ──────────────────────────────────────────────────────
-      // params.loras se guarda como string: "nombre(peso), nombre2(peso2)"
-      // Reconstruimos S.loras_active desde ese string
+      // ── LoRAs ───────────────────────────────────────────────────────
       S.loras_active = [];
+      // 1. Intentar desde p.loras (guardado nativo de Mobile UI)
       if (p.loras && p.loras !== "—") {
         p.loras.split(",").map(s => s.trim()).filter(Boolean).forEach(entry => {
           const m = entry.match(/^(.+?)\(([\d.]+)\)$/);
@@ -2723,56 +2777,48 @@ ${rSamplerSection()}
             if (n) S.loras_active.push({ n, w });
           }
         });
+      } 
+      // 2. Si no hay nada, intentar extraer de las etiquetas <lora:...> del prompt original
+      if (!S.loras_active.length && rawPrompt.includes("<lora:")) {
+        const loraMatches = [...rawPrompt.matchAll(/<lora:([^:>]+):([0-9.]+)>/g)];
+        loraMatches.forEach(m => {
+          const name = m[1].trim();
+          const weight = parseFloat(m[2]) || 1.0;
+          const found = S.loras.find(l => l.n === name || l.a === name || l.n.includes(name) || name.includes(l.n));
+          S.loras_active.push({ n: found ? found.n : name, w: weight });
+        });
       }
 
-      // ── Upscale (Hires.fix) ────────────────────────────────────────
-      S.upscale = !!p.upscale;
-      if (p.upscaler) S.upscaler = p.upscaler;
-      if (p.upscaleX) S.upscaleX = p.upscaleX;
-      // upscaleDn no se guarda en params — se conserva el valor actual de S
+      // ── Upscale (Hires.fix) ─────────────────────────────────────────
+      S.upscale = !!(p.upscale || p["Hires upscale"]);
+      if (p.upscaler || p["Hires upscaler"]) S.upscaler = p.upscaler || p["Hires upscaler"];
+      if (p.upscaleX || p["Hires upscale"]) S.upscaleX = parseFloat(p.upscaleX || p["Hires upscale"]) || 2.0;
 
-      // ── ADetailer ──────────────────────────────────────────────────
-      // params.adSlots es array de strings con los nombres de modelos activos
-      S.adetailer = !!p.adetailer;
-      if (p.adetailer && p.adSlots && p.adSlots.length) {
-        // Deshabilitar todos primero
+      // ── ADetailer ───────────────────────────────────────────────────
+      S.adetailer = !!(p.adetailer || p["ADetailer model"]);
+      if (S.adetailer) {
+        const adModelRaw = p.adSlots || p["ADetailer model"];
+        const activeModels = Array.isArray(adModelRaw) ? adModelRaw : (adModelRaw ? adModelRaw.split(";").map(s=>s.trim()) : []);
+        
         S.adSlots.forEach(slot => { slot.enabled = false; });
-        // Habilitar solo los que estaban activos, restaurando el modelo
-        p.adSlots.forEach((modelName, idx) => {
+        activeModels.forEach((modelName, idx) => {
           if (idx < S.adSlots.length) {
             S.adSlots[idx].enabled = true;
             S.adSlots[idx].model = modelName;
           }
         });
-      } else {
-        S.adSlots.forEach(slot => { slot.enabled = false; });
       }
       S.adTab = 0;
-
-      // ── Regional Prompter ──────────────────────────────────────────
-      // params guarda: rp, rpMode, rpSplitting
-      // Los demás campos (rpCalcMode, rpBase, rpRatio, rpFlip, rpTemplate)
-      // no se persisten en params → se conservan los actuales de S
-      S.rp = !!p.rp;
-      if (p.rpMode) S.rpMode = p.rpMode;
-      if (p.rpSplitting) S.rpSplitting = p.rpSplitting;
-
-      // ── Layer Diffusion ────────────────────────────────────────────
-      // layerDiffMode y layerDiffWeight no se guardan en params → se conservan de S
-      S.layerDiff = !!p.layerDiff;
 
       scheduleSave();
       this.tab("txt2img");
 
-      // Notificación con resumen de lo restaurado
       const parts = [];
       if (S.loras_active.length) parts.push(S.loras_active.length + " LoRA(s)");
       if (S.adetailer) parts.push("ADetailer");
       if (S.upscale) parts.push("Upscale");
-      if (S.rp) parts.push("RegPrompter");
-      if (S.layerDiff) parts.push("LayerDiff");
       const extra = parts.length ? " · " + parts.join(", ") : "";
-      notify("🔀 Remezcla cargada" + extra);
+      notify("🔀 Remezcla total cargada" + extra);
     },
 
     dl(src, idx) {
@@ -2788,11 +2834,19 @@ ${rSamplerSection()}
     },
 
     // ── Lightbox ─────────────────────────────────
-    lbOpenFromHistory(jobId, idx) {
-      let job = S.history.find(j => j.id === jobId);
-      if (job && job.images && job.images[idx]) {
-        this.lbOpen(job.images, job.images[idx], jobId);
-      }
+    lbOpenFromHistory(jobId, imgIdx) {
+      // 1. Obtener la lista de todas las imágenes generadas (incluyendo las actuales)
+      const entries = [];
+      S.history.forEach(j => {
+        if (j.images && j.images.length) {
+          j.images.forEach((src, i) => {
+            entries.push({ src, jobId: j.id, imgIdx: i });
+          });
+        }
+      });
+      const idx = entries.findIndex(e => e.jobId === jobId && e.imgIdx === imgIdx);
+      if (idx < 0) return;
+      this.lbOpen(entries, idx);
     },
     dlFromHistory(jobId, idx) {
       let job = S.history.find(j => j.id === jobId);
@@ -2803,59 +2857,10 @@ ${rSamplerSection()}
     // jobId guardado para remix/copy desde el lightbox
     _lbJobId: null,
 
-    lbOpen(images, activeSrc, jobId) {
-      _lbImages = Array.isArray(images) ? images : [activeSrc];
-      _lbIdx = _lbImages.indexOf(activeSrc);
+    lbOpen(imageList, activeIdx) {
+      _lbImages = Array.isArray(imageList) ? imageList : [_lbImages[activeIdx]];
+      _lbIdx = activeIdx;
       if (_lbIdx < 0) _lbIdx = 0;
-      this._lbJobId = jobId || null;
-
-      const prm = $("muiLBParams");
-      const acts = $("muiLBActions");
-      if (prm) {
-        let job = jobId ? S.history.find(j => j.id === jobId) : null;
-        if (job && job.params) {
-          const p = job.params;
-          const safeP = encodeURIComponent(p.prompt || "");
-          const safeN = encodeURIComponent(p.neg || "");
-          const mdl = (p.model || "—").replace(/\.[^/.]+$/, "").slice(0, 28);
-
-          let html = `<div class="LB-PRM-BOX">
-            <div class="LB-PRM-H">
-              <span class="LB-PRM-T">✏️ PROMPT</span>
-              <button class="LB-CPY" onclick="navigator.clipboard.writeText(decodeURIComponent('${safeP}')).then(()=>mui.lbMsg('📋 Prompt copiado'))">Copiar</button>
-            </div>
-            <div class="LB-PRM-C">${esc(p.prompt)}</div>
-          </div>`;
-
-          if (p.neg) {
-            html += `<div class="LB-PRM-BOX">
-              <div class="LB-PRM-H">
-                <span class="LB-PRM-TC">🚫 NEGATIVE</span>
-                <button class="LB-CPY" onclick="navigator.clipboard.writeText(decodeURIComponent('${safeN}')).then(()=>mui.lbMsg('📋 Negativo copiado'))">Copiar</button>
-              </div>
-              <div class="LB-PRM-C">${esc(p.neg)}</div>
-            </div>`;
-          }
-
-          // Chips de parámetros
-          html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
-            <span class="CHIP">${esc(mdl)}</span>
-            <span class="CHIP">${p.steps}s · CFG ${p.cfg}</span>
-            <span class="CHIP">${p.w}×${p.h}</span>
-            ${p.sampler ? `<span class="CHIP">${esc(p.sampler)}</span>` : ""}
-            ${p.seed && p.seed !== '-1' && p.seed !== '\u22121' ? `<span class="CHIP HL">🌱 ${p.seed}</span>` : ""}
-            ${p.upscale ? `<span class="CHIP HL">Upscale ×${p.upscaleX}</span>` : ""}
-            ${p.adetailer ? `<span class="CHIP HL">ADetailer</span>` : ""}
-            ${p.loras && p.loras !== "—" ? `<span class="CHIP HL">✨ ${esc(p.loras.slice(0,24))}</span>` : ""}
-          </div>`;
-
-          prm.innerHTML = html;
-          if (acts) acts.style.display = "flex";
-        } else {
-          prm.innerHTML = "";
-          if (acts) acts.style.display = "none";
-        }
-      }
 
       this._lbRender();
       $("muiLB").classList.add("open");
@@ -2863,9 +2868,19 @@ ${rSamplerSection()}
 
     // Abrir lightbox desde galería
     galOpen(jobId, imgIdx) {
-      const job = S.history.find(j => j.id === jobId);
-      if (!job || !job.images || !job.images[imgIdx]) return;
-      this.lbOpen(job.images, job.images[imgIdx], jobId);
+      // 1. Obtener la lista de imágenes actual de la Galería (está en S.history, filtrada por status 'done')
+      const entries = [];
+      S.history.forEach(j => {
+        if (j.status === "done" && j.images) {
+          j.images.forEach((src, i) => {
+            entries.push({ src, jobId: j.id, imgIdx: i });
+          });
+        }
+      });
+
+      const idx = entries.findIndex(e => e.jobId === jobId && e.imgIdx === imgIdx);
+      if (idx < 0) return;
+      this.lbOpen(entries, idx);
     },
 
     // Limpiar galería (solo las imágenes, no las tareas en error)
@@ -2914,7 +2929,7 @@ ${rSamplerSection()}
         const res = await (await fetch("/mui/v1/scan_gallery?limit=150")).json();
         if (res && res.images) {
           serverJobs = res.images.map(img => {
-            const params = this.parseSDInfo(img.info);
+            const params = this.parseCivitaiText(img.info); // Usar el parser robusto
             params.ts = img.ts; 
             return {
               id: "srv-" + img.mtime, // ID basado en mtime para evitar duplicados
@@ -2995,8 +3010,59 @@ ${rSamplerSection()}
       notify(msg);
     },
     _lbRender() {
-      const img = $("muiLBImg"); if (!img) return;
-      img.src = _lbImages[_lbIdx] || "";
+      const container = $("muiLBImg"); if (!container) return;
+      const entry = _lbImages[_lbIdx]; if (!entry) return;
+      container.src = entry.src || "";
+      this._lbJobId = entry.jobId || null;
+
+      // Actualizar Parámetros (Metadata)
+      const prm = $("muiLBParams");
+      const acts = $("muiLBActions");
+      if (prm) {
+        let job = this._lbJobId ? S.history.find(j => j.id === this._lbJobId) : null;
+        if (job && job.params) {
+          const p = job.params;
+          const safeP = encodeURIComponent(p.prompt || "");
+          const safeN = encodeURIComponent(p.neg || "");
+          const mdl = (p.model || "—").replace(/\.[^/.]+$/, "").slice(0, 28);
+
+          let html = `<div class="LB-PRM-BOX">
+            <div class="LB-PRM-H">
+              <span class="LB-PRM-T">✏️ PROMPT</span>
+              <button class="LB-CPY" onclick="navigator.clipboard.writeText(decodeURIComponent('${safeP}')).then(()=>mui.lbMsg('📋 Prompt copiado'))">Copiar</button>
+            </div>
+            <div class="LB-PRM-C">${esc(p.prompt)}</div>
+          </div>`;
+
+          if (p.neg) {
+            html += `<div class="LB-PRM-BOX">
+              <div class="LB-PRM-H">
+                <span class="LB-PRM-TC">🚫 NEGATIVE</span>
+                <button class="LB-CPY" onclick="navigator.clipboard.writeText(decodeURIComponent('${safeN}')).then(()=>mui.lbMsg('📋 Negativo copiado'))">Copiar</button>
+              </div>
+              <div class="LB-PRM-C">${esc(p.neg)}</div>
+            </div>`;
+          }
+
+          html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
+            <span class="CHIP">${esc(mdl)}</span>
+            <span class="CHIP">${p.steps}s · CFG ${p.cfg}</span>
+            <span class="CHIP">${p.w}×${p.h}</span>
+            ${p.sampler ? `<span class="CHIP">${esc(p.sampler)}</span>` : ""}
+            ${p.seed && p.seed !== '-1' && p.seed !== '\u22121' ? `<span class="CHIP HL">🌱 ${p.seed}</span>` : ""}
+            ${p.upscale ? `<span class="CHIP HL">Upscale ×${p.upscaleX}</span>` : ""}
+            ${p.adetailer ? `<span class="CHIP HL">ADetailer</span>` : ""}
+            ${p.loras && p.loras !== "—" ? `<span class="CHIP HL">✨ ${esc(p.loras.slice(0,24))}</span>` : ""}
+          </div>`;
+
+          prm.innerHTML = html;
+          if (acts) acts.style.display = "flex";
+        } else {
+          prm.innerHTML = "";
+          if (acts) acts.style.display = "none";
+        }
+      }
+
       const prev = $("muiLBPrev"), next = $("muiLBNext");
       if (prev) prev.disabled = _lbIdx === 0;
       if (next) next.disabled = _lbIdx === _lbImages.length - 1;
@@ -3005,7 +3071,7 @@ ${rSamplerSection()}
       _lbIdx = clamp(_lbIdx + dir, 0, _lbImages.length - 1);
       this._lbRender();
     },
-    lbDl() { if (_lbImages[_lbIdx]) this.dl(_lbImages[_lbIdx], _lbIdx); },
+    lbDl() { const entry = _lbImages[_lbIdx]; if (entry && entry.src) this.dl(entry.src, _lbIdx); },
     lbClose() { $("muiLB").classList.remove("open"); },
     fsOpen(src) {
       const fs = $("muiFS");
@@ -3100,7 +3166,11 @@ ${rSamplerSection()}
       // Values can contain commas inside so we split on ", KEY:" boundaries
       if (metaStr) {
         // Build a regex that matches ", <KEY>:" to find boundaries
-        const allKeys = META_KEYS.join("|");
+        const allKeys = [
+          ...META_KEYS, 
+          "ADetailer model", "ADetailer prompt", "ADetailer negative prompt",
+          "Hires upscale", "Hires upscaler", "Denoising strength"
+        ].join("|");
         const splitRe = new RegExp(",\\s*(?=(?:" + allKeys + "):)", "g");
         const parts = metaStr.split(splitRe);
         parts.forEach(p => {
