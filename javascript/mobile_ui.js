@@ -373,7 +373,7 @@
       clearTimeout(tid);
       if (!r.ok) {
         // Reintentar automáticamente si el error es transitorio
-        if (RETRIABLE.has(r.status) && attempt <= MAX_RETRIES) {
+        if (RETRIABLE.has(r.status) && attempt <= MAX_RETRIES && !p.includes("txt2img") && !p.includes("img2img")) {
           const delay = attempt * 3000; // 3 s, 6 s
           notify("⚠️ HTTP " + r.status + " — Reintentando en " + (delay / 1000) + " s… (" + attempt + "/" + MAX_RETRIES + ")");
           await new Promise(res => setTimeout(res, delay));
@@ -386,7 +386,7 @@
       clearTimeout(tid);
       if (e.name === "AbortError") throw new Error("Timeout (" + Math.round(ms / 60000) + " min) — generación cancelada. Considera reducir steps o desactivar Upscale.");
       // Red caída / tunnel caído → reintentar
-      if (!(e.message.startsWith("HTTP") || e.message.startsWith("Timeout")) && attempt <= MAX_RETRIES) {
+      if (!(e.message.startsWith("HTTP") || e.message.startsWith("Timeout")) && attempt <= MAX_RETRIES && !p.includes("txt2img") && !p.includes("img2img")) {
         const delay = attempt * 4000;
         notify("🔌 Sin conexión — Reintentando en " + (delay / 1000) + " s… (" + attempt + "/" + MAX_RETRIES + ")");
         await new Promise(res => setTimeout(res, delay));
@@ -3265,7 +3265,6 @@ ${rSamplerSection()}
       }
 
       // Parse metadata key:value pairs separated by ", "
-      // Values can contain commas inside so we split on ", KEY:" boundaries
       if (metaStr) {
         // Build a regex that matches ", <KEY>:" to find boundaries
         const allKeys = [
@@ -3283,6 +3282,36 @@ ${rSamplerSection()}
           result[k] = v;
         });
       }
+      
+      // Mapear claves nativas a minúsculas usadas por la UI (Tasks/Gallery)
+      if (result["Model"]) result.model = result["Model"];
+      if (result["Seed"]) result.seed = result["Seed"];
+      if (result["Sampler"]) result.sampler = result["Sampler"];
+      if (result["Schedule type"]) result.scheduler = result["Schedule type"];
+      if (result["Steps"]) { const s = parseInt(result["Steps"]); if (!isNaN(s)) result.steps = s; }
+      if (result["CFG scale"]) { const c = parseFloat(result["CFG scale"]); if (!isNaN(c)) result.cfg = c; }
+      if (result["Size"]) {
+        const spl = result["Size"].toLowerCase().split("x");
+        if (spl.length === 2) { result.w = parseInt(spl[0]); result.h = parseInt(spl[1]); }
+      }
+      if (result["Hires upscale"]) {
+        result.upscale = true;
+        result.upscaleX = parseFloat(result["Hires upscale"]) || 2.0;
+        result.upscaler = result["Hires upscaler"] || "Latent";
+      }
+      if (result["ADetailer model"]) {
+        result.adetailer = true;
+        result.adSlots = result["ADetailer model"].split(";").map(s => s.trim());
+      }
+      // Buscar LoRAs en el prompt principal para asignarlos internamente
+      if (result.prompt && result.prompt.includes("<lora:")) {
+        const loraMatches = [...result.prompt.matchAll(/<lora:([^:>]+):([0-9.]+)>/g)];
+        if (loraMatches.length) {
+          result.loras_active = loraMatches.map(m => ({ n: m[1].trim(), w: parseFloat(m[2]) || 1.0 }));
+          result.loras = result.loras_active.map(l => l.n).join(", ");
+        }
+      }
+
       return result;
     },
 
