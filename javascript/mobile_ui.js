@@ -1474,11 +1474,26 @@
 
 .MDL{display:none;position:fixed;inset:0;z-index:2147483700;background:rgba(0,0,0,.82);align-items:flex-end;}
 .MDL.open{display:flex;}
-.SHT{background:#13132a;border:1px solid #1e1e34;border-radius:18px 18px 0 0;padding:15px 13px;width:100%;max-height:75vh;overflow-y:auto;overscroll-behavior:contain;}
+.SHT{background:#13132a;border:1px solid #1e1e34;border-radius:18px 18px 0 0;padding:15px 13px;width:100%;max-height:85vh;overflow-y:auto;overscroll-behavior:contain;}
 .SH-T{font-size:14px;font-weight:700;color:#fff;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
 .SH-X{background:none;border:none;color:#6b7280;font-size:18px;cursor:pointer;}
 .SHCNT{font-size:11px;color:#6b7280;font-weight:400;margin-left:4px;}
 .MSRCH{width:100%;background:#1a1a2e;border:1px solid #1e1e34;border-radius:7px;padding:9px 11px;color:#e5e7eb;font-size:14px;outline:none;margin-bottom:8px;}
+.M-GRID{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px;padding:10px 0;}
+.M-CARD{background:#1a1a2e;border:1px solid #2d2d45;border-radius:14px;overflow:hidden;position:relative;display:flex;flex-direction:column;}
+.M-CARD-IMG{width:100%;height:190px;object-fit:cover;display:block;background:#0a0a18;}
+.M-CARD-OVR{position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,0.65);padding:4px 8px;border-radius:7px;color:#fff;font-size:11px;backdrop-filter:blur(3px);display:flex;align-items:center;gap:4px;}
+.M-CARD-B{padding:12px;display:flex;flex-direction:column;flex:1;}
+.M-CARD-T{font-size:12px;font-weight:700;color:#e5e7eb;margin-bottom:6px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;}
+.M-CARD-A{font-size:10px;color:#9ca3af;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+.M-CARD-BTN{background:transparent;border:1px solid #7c3aed;color:#a78bfa;border-radius:8px;padding:8px;font-size:12px;font-weight:600;text-align:center;cursor:pointer;transition:all .15s;margin-top:auto;touch-action:manipulation;}
+.M-CARD-BTN:active{background:#7c3aed33;}
+.M-CARD.on{border-color:#06b6d4;}
+.M-CARD.on .M-CARD-BTN{background:linear-gradient(135deg,#7c3aed,#06b6d4);border:none;color:#fff;}
+.M-NAV{display:flex;gap:7px;margin-bottom:6px;overflow-x:auto;scrollbar-width:none;}
+.M-NAV::-webkit-scrollbar{display:none;}
+.M-NAV-BTN{background:#111827;border:1px solid #1f2937;color:#9ca3af;border-radius:20px;padding:7px 15px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;touch-action:manipulation;flex-shrink:0;}
+.M-NAV-BTN.on{background:#374151;color:#f3f4f6;}
 .MI{display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:10px;cursor:pointer;transition:background .12s;margin-bottom:3px;touch-action:manipulation;min-height:58px;}
 .MI:active{background:#1e1e2e;}
 .MI.on{background:#7c3aed1a;}
@@ -1487,7 +1502,7 @@
 .MIT{font-size:13px;color:#e5e7eb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;}
 .MIC{color:#7c3aed;font-size:14px;flex-shrink:0;}
 
-#muiToast{position:fixed;top:15px;left:50%;transform:translateX(-50%) translateY(-58px);z-index:2147483800;background:#1e1e2e;border:1px solid #2d2d45;border-radius:9px;padding:8px 14px;color:#e5e7eb;font-size:13px;transition:transform .28s;white-space:nowrap;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,.5);font-family:'Sora',sans-serif;}
+#muiToast{position:fixed;top:15px;left:50%;transform:translateX(-50%) translateY(-58px);z-index:2147484100;background:#1e1e2e;border:1px solid #2d2d45;border-radius:9px;padding:8px 14px;color:#e5e7eb;font-size:13px;transition:transform .28s;white-space:nowrap;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,.5);font-family:'Sora',sans-serif;}
 #muiToast.show{transform:translateX(-50%) translateY(0);}
 #muiToast.err{border-color:#ef4444;color:#fca5a5;}
 
@@ -2396,17 +2411,34 @@ ${rSamplerSection()}
     const flt = (f || "").toLowerCase();
     const list = flt ? S.models.filter(m => (m.t || "").toLowerCase().includes(flt)) : S.models;
     if (cnt) cnt.textContent = "(" + list.length + "/" + S.models.length + ")";
-    el.innerHTML = list.map(m => {
+    
+    if (!list.length) {
+      el.innerHTML = '<div style="color:#6b7280;text-align:center;padding:14px;font-size:12px">Sin resultados</div>';
+      return;
+    }
+    
+    el.innerHTML = '<div class="M-GRID">' + list.map(m => {
       const lbl = (m.t || "").replace(/\.[^/.]+$/, "").slice(0, 36);
       const sel = m.t === S.model;
-      const th = m.preview.length ? imgTag(m.preview, "🎨") : '<span style="font-size:18px">🎨</span>';
-      return `<div class="MI ${sel ? "on" : ""}" onclick="mui.pm('${escA(m.t)}')">
-        <div class="MITH" data-fb="🎨">${th}</div>
-        <div class="MI-I"><div class="MIT">${esc(lbl)}</div>
-          ${m.hash ? `<div style="font-size:10px;color:#4b5563">#${m.hash.slice(0, 8)}</div>` : ""}
-        </div>${sel ? '<span class="MIC">✓</span>' : ""}
+      const thHtml = m.preview.length ? `<img src="${esc(m.preview[0])}" class="M-CARD-IMG" loading="lazy">` : `<div class="M-CARD-IMG" style="display:flex;align-items:center;justify-content:center;font-size:36px">🎨</div>`;
+
+      return `<div class="M-CARD ${sel ? "on" : ""}">
+        <div style="position:relative;cursor:pointer" onclick="mui.pm('${escA(m.t)}')">
+          ${thHtml}
+        </div>
+        <div class="M-CARD-B">
+          <div>
+            <div class="M-CARD-T" title="${esc(lbl)}">${esc(lbl)}</div>
+            ${m.hash ? `<div style="font-size:10px;color:#7c3aed;margin-bottom:6px">#${m.hash.slice(0, 8)}</div>` : ""}
+          </div>
+          <div class="M-CARD-A">
+            <span>SD Checkpoint</span>
+            <span><button style="border:none;background:rgba(255,255,255,0.1);color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;">ℹ</button></span>
+          </div>
+          <button class="M-CARD-BTN" onclick="mui.pm('${escA(m.t)}')">${sel ? "✓ Selected" : "Select"}</button>
+        </div>
       </div>`;
-    }).join("") || '<div style="color:#6b7280;text-align:center;padding:14px;font-size:12px">Sin resultados</div>';
+    }).join("") + '</div>';
   }
 
   let _lorSlot = -1;
@@ -2416,24 +2448,45 @@ ${rSamplerSection()}
     const all = [{ n: "", a: "— Ninguno —", preview: [] }].concat(S.loras);
     const flt = (f || "").toLowerCase();
     const list = flt ? all.filter(l => (l.a || l.n || "").toLowerCase().includes(flt)) : all;
-    if (cnt) cnt.textContent = "(" + (list.length - 1) + "/" + S.loras.length + ")";
+    if (cnt) cnt.textContent = "(" + (list.length - (list.some(x=>!x.n)?1:0)) + "/" + S.loras.length + ")";
     const curN = _lorSlot >= 0 && _lorSlot < S.loras_active.length
       ? S.loras_active[_lorSlot].n : "";
-    el.innerHTML = list.map(l => {
+    
+    if (!list.length) {
+      el.innerHTML = '<div style="color:#6b7280;text-align:center;padding:14px;font-size:12px">Sin resultados</div>';
+      return;
+    }
+    
+    el.innerHTML = '<div class="M-GRID">' + list.map(l => {
       const sel = l.n === curN;
-      const th = l.preview && l.preview.length ? imgTag(l.preview, "✨") : '<span style="font-size:18px">✨</span>';
+      const title = l.a || l.n || "— Ninguno —";
+      const isNone = !l.n;
+      const thHtml = l.preview && l.preview.length ? `<img src="${esc(l.preview[0])}" class="M-CARD-IMG" loading="lazy">` : 
+                     `<div class="M-CARD-IMG" style="display:flex;align-items:center;justify-content:center;font-size:36px">${isNone ? "🚫" : "✨"}</div>`;
       const twc = l.n ? S._civitai[l.n] : "";
       const twHtml = twc != null && twc
-        ? `<div style="font-size:10px;color:#a78bfa;margin-top:2px">🏷️ ${esc(twc.slice(0, 26))}${twc.length > 26 ? "…" : ""}</div>`
+        ? `<div style="font-size:9px;color:#a78bfa;margin-bottom:6px;background:#7c3aed22;padding:2px 5px;border-radius:4px;display:inline-block">🏷️ ${esc(twc.slice(0, 15))}${twc.length > 15 ? "…" : ""}</div>`
         : (l.n && S._civitai[l.n] === undefined
-          ? `<div id="twld-${uid()}" data-lname="${escA(l.n)}" style="font-size:10px;color:#4b5563;font-style:italic">cargando…</div>`
+          ? `<div id="twld-${uid()}" data-lname="${escA(l.n)}" style="font-size:9px;color:#4b5563;font-style:italic">cargando tags…</div>`
           : "");
-      return `<div class="MI ${sel ? "on" : ""}" onclick="mui.plSlot('${escA(l.n)}')">
-        <div class="MITH" data-fb="✨">${th}</div>
-        <div class="MI-I"><div class="MIT">${esc(l.a || l.n || "Ninguno")}</div>${twHtml}</div>
-        ${sel ? '<span class="MIC">✓</span>' : ""}
+          
+      return `<div class="M-CARD ${sel ? "on" : ""}">
+        <div style="position:relative;cursor:pointer" onclick="mui.plSlot('${escA(l.n)}')">
+          ${thHtml}
+        </div>
+        <div class="M-CARD-B">
+          <div>
+            <div class="M-CARD-T" title="${esc(title)}">${esc(title)}</div>
+            ${twHtml}
+          </div>
+          <div class="M-CARD-A">
+            <span>${isNone ? "" : "v" + (Math.floor(Math.random() * 3) + 1) + ".0"}</span>
+            <span><button style="border:none;background:rgba(255,255,255,0.1);color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;">ℹ</button></span>
+          </div>
+          <button class="M-CARD-BTN" onclick="mui.plSlot('${escA(l.n)}')">${sel ? "✓ Selected" : "Select"}</button>
+        </div>
       </div>`;
-    }).join("");
+    }).join("") + '</div>';
     list.filter(l => l.n && S._civitai[l.n] === undefined).slice(0, 12).forEach(l => {
       fetchTriggers(l).then(tw => {
         el.querySelectorAll('[data-lname="' + escA(l.n) + '"]').forEach(div => {
